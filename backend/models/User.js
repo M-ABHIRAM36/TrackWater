@@ -31,6 +31,18 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  notificationStartHour: {
+    type: Number,
+    default: 5, // 5 AM
+    min: [0, 'Start hour must be between 0-23'],
+    max: [23, 'Start hour must be between 0-23']
+  },
+  notificationEndHour: {
+    type: Number,
+    default: 0, // 12 AM (midnight)
+    min: [0, 'End hour must be between 0-23'],
+    max: [23, 'End hour must be between 0-23']
+  },
   dailyGoal: {
     type: Number,
     default: 2000, // Default daily goal in ml (2 liters)
@@ -95,6 +107,32 @@ userSchema.methods.getSafeData = function() {
   const userObject = this.toObject();
   delete userObject.password;
   return userObject;
+};
+
+/**
+ * Method to check if user should receive notifications at a specific hour
+ * @param {number} currentHour - Current hour (0-23)
+ * @returns {boolean} - Whether user should receive notification
+ */
+userSchema.methods.shouldReceiveNotificationAtHour = function(currentHour) {
+  if (!this.notificationsEnabled) {
+    return false;
+  }
+  
+  const startHour = this.notificationStartHour;
+  const endHour = this.notificationEndHour;
+  
+  // Handle cases where end hour is next day (e.g., 22 to 2 means 10 PM to 2 AM)
+  if (endHour === 0) {
+    // Special case: end at midnight (0 = 24)
+    return currentHour >= startHour || currentHour === 0;
+  } else if (startHour <= endHour) {
+    // Same day range (e.g., 9 AM to 5 PM)
+    return currentHour >= startHour && currentHour <= endHour;
+  } else {
+    // Cross-day range (e.g., 10 PM to 2 AM next day)
+    return currentHour >= startHour || currentHour <= endHour;
+  }
 };
 
 /**

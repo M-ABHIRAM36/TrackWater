@@ -52,12 +52,18 @@ const AudioAlert = () => {
   }, [])
 
   const handleServiceWorkerMessage = (event) => {
+    console.log('[AudioAlert] Received message from service worker:', event.data)
+    
     const { type, sound, soundUrl, duration, volume } = event.data
     
     if (type === 'PLAY_SOUND' && sound) {
+      console.log('[AudioAlert] Playing legacy sound:', sound)
       playAlertSound(sound)
     } else if (type === 'PLAY_WATER_ALERT') {
+      console.log('[AudioAlert] ✅ Playing water alert:', { soundUrl, duration, volume })
       playWaterAlert(soundUrl, duration, volume)
+    } else {
+      console.log('[AudioAlert] Unknown message type:', type)
     }
   }
 
@@ -94,9 +100,9 @@ const AudioAlert = () => {
     }
   }
   
-  const playWaterAlert = (soundUrl = '/sounds/alert.mp3', duration = 10000, volume = 0.7) => {
+  const playWaterAlert = (soundUrl = '/sounds/alert.mp3', duration = 6000, volume = 0.7) => {
     try {
-      console.log(`[AudioAlert] Playing 10-second water alert sound from: ${soundUrl}`)
+      console.log(`[AudioAlert] Playing 6-second water alert sound from: ${soundUrl}`)
       
       if (audioRef.current) {
         // Reset audio element
@@ -117,6 +123,8 @@ const AudioAlert = () => {
             paused: audioRef.current.paused,
             muted: audioRef.current.muted
           })
+          
+          const playPromise = audioRef.current.play()
           
           if (playPromise !== undefined) {
             playPromise
@@ -279,7 +287,7 @@ const AudioAlert = () => {
         console.error('[AudioAlert] Web Audio API test failed:', error)
       }
     } else {
-      playWaterAlert('/sounds/alert.mp3', 3000, 0.5) // 3 seconds at 50% volume for testing
+      playWaterAlert('/sounds/alert.mp3', 6000, 0.7) // 6 seconds at 70% volume for testing
     }
   }
   
@@ -364,15 +372,31 @@ const AudioAlert = () => {
     console.log('ℹ️ To test max volume: window.testVolume(1.0) // 100% volume')
   }
   
+  // Manual trigger function for notification sound
+  const triggerNotificationSound = () => {
+    console.log('[AudioAlert] Manually triggering notification sound...')
+    // Simulate the service worker message
+    handleServiceWorkerMessage({
+      data: {
+        type: 'PLAY_WATER_ALERT',
+        soundUrl: '/sounds/alert.mp3',
+        duration: 6000, // 6 seconds
+        volume: 1.0
+      }
+    })
+  }
+  
   // Expose test functions globally for debugging
   useEffect(() => {
     window.testWaterAlert = testSound
     window.audioDebug = audioDiagnostics
     window.testVolume = testVolume
+    window.triggerNotificationSound = triggerNotificationSound
     return () => {
       delete window.testWaterAlert
       delete window.audioDebug
       delete window.testVolume
+      delete window.triggerNotificationSound
     }
   }, [])
 

@@ -172,25 +172,22 @@ self.addEventListener('notificationclick', (event) => {
   const action = event.action
   const notificationData = event.notification.data || {}
 
-  // Handle different actions
-  if (action === 'log-water') {
-    // Open app and focus on water logging
-    event.waitUntil(
-      openAppAndFocusTab('/?action=log-water')
-    )
-  } else if (action === 'snooze') {
-    // Snooze for 30 minutes (show another notification)
-    event.waitUntil(
-      scheduleSnoozeNotification()
-    )
-  } else {
-    // Default action - open app and play sound
-    event.waitUntil(
-      openAppAndFocusTab('/?notification=clicked').then(() => {
-        return playNotificationSound()
-      })
-    )
-  }
+  // ALWAYS play water alert sound first for any notification click
+  event.waitUntil(
+    playNotificationSound().then(() => {
+      // Then handle specific actions
+      if (action === 'log-water') {
+        // Open app and focus on water logging
+        return openAppAndFocusTab('/?action=log-water')
+      } else if (action === 'snooze') {
+        // Snooze for 30 minutes (show another notification)
+        return scheduleSnoozeNotification()
+      } else {
+        // Default action - open app
+        return openAppAndFocusTab('/?notification=clicked')
+      }
+    })
+  )
 })
 
 // Helper function to open app and focus tab
@@ -226,23 +223,37 @@ async function openAppAndFocusTab(url = '/') {
 // Helper function to play 10-second water alert sound
 async function playNotificationSound() {
   try {
-    const clients = await self.clients.matchAll()
+    console.log('[SW] Playing notification sound - looking for clients...')
+    const clients = await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    })
+    
+    console.log(`[SW] Found ${clients.length} clients`)
+    
     if (clients.length > 0) {
-      // Send message to active client to play 10-second water alert
-      clients.forEach(client => {
-        client.postMessage({
-          type: 'PLAY_WATER_ALERT',
-          soundUrl: '/sounds/alert.mp3',
-          duration: 10000, // 10 seconds
-          volume: 0.7 // Comfortable volume level
-        })
+      // Send message to all active clients to play 10-second water alert
+      const message = {
+        type: 'PLAY_WATER_ALERT',
+        soundUrl: '/sounds/alert.mp3',
+        duration: 6000, // 6 seconds (actual audio length)
+        volume: 1.0 // Full volume for notification clicks
+      }
+      
+      clients.forEach((client, index) => {
+        console.log(`[SW] Sending water alert message to client ${index + 1}`)
+        client.postMessage(message)
       })
-      console.log('[SW] Sent water alert sound message to clients')
+      
+      console.log('[SW] ✅ Water alert sound message sent to all clients')
+      
+      // Wait a moment to ensure message is processed
+      await new Promise(resolve => setTimeout(resolve, 100))
     } else {
-      console.log('[SW] No active clients to play sound')
+      console.warn('[SW] ⚠️ No active clients found to play sound')
     }
   } catch (error) {
-    console.error('[SW] Failed to play water alert sound:', error)
+    console.error('[SW] ❌ Failed to play water alert sound:', error)
   }
 }
 
@@ -334,6 +345,20 @@ async function cacheWaterLogOffline(logData) {
   }
 }
 
+// Helper function to test notification click behavior
+const testNotificationClick = async () => {
+  try {
+    console.log('[SW] Testing notification click behavior...')
+    await playNotificationSound()
+    console.log('[SW] Notification click test completed')
+  } catch (error) {
+    console.error('[SW] Test notification click failed:', error)
+  }
+}
+
+// Expose test function for debugging
+self.testNotificationClick = testNotificationClick
+
 // Error event
 self.addEventListener('error', (event) => {
   console.error('[SW] Service worker error:', event.error)
@@ -346,3 +371,4 @@ self.addEventListener('unhandledrejection', (event) => {
 })
 
 console.log('[SW] Service worker loaded successfully')
+console.log('[SW] 🧪 Test notification click: self.testNotificationClick()')
