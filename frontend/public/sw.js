@@ -184,8 +184,10 @@ self.addEventListener('notificationclick', (event) => {
     playNotificationSound().then(() => {
       // Then handle specific actions
       if (action === 'log-water') {
-        // Open app and focus on water logging
-        return openAppAndFocusTab('/?action=log-water')
+        // Log water automatically and show success
+        return logWaterAutomatically().then(() => {
+          return openAppAndFocusTab('/?action=water-logged')
+        })
       } else if (action === 'snooze') {
         // Snooze for 30 minutes (show another notification)
         return scheduleSnoozeNotification()
@@ -349,6 +351,49 @@ async function cacheWaterLogOffline(logData) {
     console.log('[SW] Cached water log offline:', timestamp)
   } catch (error) {
     console.error('[SW] Failed to cache water log offline:', error)
+  }
+}
+
+// Helper function to automatically log water using quick endpoint
+const logWaterAutomatically = async () => {
+  try {
+    console.log('[SW] 💧 Auto-logging water from notification click...')
+    
+    // Get stored JWT token from localStorage (we can't access it directly from SW)
+    // So we'll send a message to the client to handle the API call
+    const clients = await self.clients.matchAll({ type: 'window' })
+    
+    if (clients.length > 0) {
+      clients[0].postMessage({
+        type: 'LOG_WATER_AUTOMATICALLY',
+        timestamp: Date.now()
+      })
+      console.log('[SW] ✅ Sent auto-log water message to client')
+    } else {
+      console.warn('[SW] ⚠️ No active clients to handle water logging')
+    }
+    
+    // Show success notification
+    await self.registration.showNotification('Water Logged! ✅', {
+      body: 'Great job staying hydrated!',
+      icon: '/icons/icon-192x192.png',
+      tag: 'water-logged-success',
+      requireInteraction: false,
+      silent: true,
+      data: { action: 'success' }
+    })
+    
+  } catch (error) {
+    console.error('[SW] Error auto-logging water:', error)
+    
+    // Show error notification
+    await self.registration.showNotification('Water Log Failed ❌', {
+      body: 'Please open the app to log manually',
+      icon: '/icons/icon-192x192.png',
+      tag: 'water-log-error',
+      requireInteraction: true,
+      data: { action: 'error' }
+    })
   }
 }
 

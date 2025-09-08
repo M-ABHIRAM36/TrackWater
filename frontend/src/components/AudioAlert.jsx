@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import { initAudio, playWaterDrops, isAudioSupported } from '../utils/audioGenerator'
+import apiMethods from '../api/api'
 
 /**
  * AudioAlert Component
@@ -54,7 +55,7 @@ const AudioAlert = () => {
   const handleServiceWorkerMessage = (event) => {
     console.log('[AudioAlert] Received message from service worker:', event.data)
     
-    const { type, sound, soundUrl, duration, volume } = event.data
+    const { type, sound, soundUrl, duration, volume, timestamp } = event.data
     
     if (type === 'PLAY_SOUND' && sound) {
       console.log('[AudioAlert] Playing legacy sound:', sound)
@@ -62,11 +63,38 @@ const AudioAlert = () => {
     } else if (type === 'PLAY_WATER_ALERT') {
       console.log('[AudioAlert] ✅ Playing water alert:', { soundUrl, duration, volume })
       playWaterAlert(soundUrl, duration, volume)
+    } else if (type === 'LOG_WATER_AUTOMATICALLY') {
+      console.log('[AudioAlert] 💧 Auto-logging water from notification...')
+      handleAutoLogWater(timestamp)
     } else {
       console.log('[AudioAlert] Unknown message type:', type)
     }
   }
 
+  // Handle automatic water logging from service worker
+  const handleAutoLogWater = async (timestamp) => {
+    try {
+      console.log('[AudioAlert] 💧 Attempting to auto-log water...')
+      
+      const response = await apiMethods.post('/water/log/quick', {
+        notes: 'Auto-logged from notification'
+      })
+      
+      if (response.data) {
+        const { waterLog, wasDefault } = response.data
+        console.log(`[AudioAlert] ✅ Water logged successfully: ${waterLog.amountMl}ml ${wasDefault ? '(default)' : '(custom)'}`)
+        
+        // Show a brief success visual feedback
+        showWaterLoggedSuccess(waterLog.amountMl)
+      }
+    } catch (error) {
+      console.error('[AudioAlert] ❌ Failed to auto-log water:', error)
+      
+      // Show error feedback
+      showWaterLoggedError()
+    }
+  }
+  
   const playAlertSound = (soundUrl = '/sounds/alert.mp3') => {
     try {
       if (audioRef.current) {
@@ -272,6 +300,56 @@ const AudioAlert = () => {
       setTimeout(() => notification.remove(), 500)
     }, 10000)
   }
+  
+  const showWaterLoggedSuccess = (amount) => {
+    // Show success notification for auto-logged water
+    const notification = document.createElement('div')
+    notification.className = 'fixed top-4 right-4 bg-gradient-to-r from-green-400 to-green-600 text-white px-8 py-4 rounded-xl shadow-2xl z-50 transform transition-all duration-500'
+    notification.innerHTML = `
+      <div class="flex items-center">
+        <div class="mr-3">
+          <span class="text-2xl filter drop-shadow-lg">🎆</span>
+        </div>
+        <div>
+          <p class="font-bold text-lg">Water Logged!</p>
+          <p class="text-sm opacity-90">Added ${amount}ml automatically</p>
+        </div>
+      </div>
+    `
+    
+    document.body.appendChild(notification)
+    
+    // Remove after 4 seconds
+    setTimeout(() => {
+      notification.style.transform = 'translateX(400px)'
+      setTimeout(() => notification.remove(), 500)
+    }, 4000)
+  }
+  
+  const showWaterLoggedError = () => {
+    // Show error notification for failed auto-log
+    const notification = document.createElement('div')
+    notification.className = 'fixed top-4 right-4 bg-gradient-to-r from-red-400 to-red-600 text-white px-8 py-4 rounded-xl shadow-2xl z-50 transform transition-all duration-500'
+    notification.innerHTML = `
+      <div class="flex items-center">
+        <div class="mr-3">
+          <span class="text-2xl filter drop-shadow-lg">❌</span>
+        </div>
+        <div>
+          <p class="font-bold text-lg">Auto-log Failed</p>
+          <p class="text-sm opacity-90">Please log manually in the app</p>
+        </div>
+      </div>
+    `
+    
+    document.body.appendChild(notification)
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+      notification.style.transform = 'translateX(400px)'
+      setTimeout(() => notification.remove(), 500)
+    }, 5000)
+  }
 
   // Test sound function for debugging
   const testSound = async (useWebAudio = false) => {
@@ -386,17 +464,30 @@ const AudioAlert = () => {
     })
   }
   
+  // Test auto water logging
+  const testAutoLogWater = () => {
+    console.log('[AudioAlert] Testing auto water logging...')
+    handleServiceWorkerMessage({
+      data: {
+        type: 'LOG_WATER_AUTOMATICALLY',
+        timestamp: Date.now()
+      }
+    })
+  }
+  
   // Expose test functions globally for debugging
   useEffect(() => {
     window.testWaterAlert = testSound
     window.audioDebug = audioDiagnostics
     window.testVolume = testVolume
     window.triggerNotificationSound = triggerNotificationSound
+    window.testAutoLogWater = testAutoLogWater
     return () => {
       delete window.testWaterAlert
       delete window.audioDebug
       delete window.testVolume
       delete window.triggerNotificationSound
+      delete window.testAutoLogWater
     }
   }, [])
 

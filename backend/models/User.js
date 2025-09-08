@@ -49,6 +49,12 @@ const userSchema = new mongoose.Schema({
     min: [500, 'Daily goal must be at least 500ml'],
     max: [5000, 'Daily goal cannot exceed 5000ml']
   },
+  defaultWaterAmount: {
+    type: Number,
+    default: 250, // Default amount to log per notification click (250ml)
+    min: [50, 'Default amount must be at least 50ml'],
+    max: [1000, 'Default amount cannot exceed 1000ml']
+  },
   timezone: {
     type: String,
     default: 'UTC'

@@ -1,5 +1,6 @@
 const express = require('express');
 const WaterLog = require('../models/WaterLog');
+const User = require('../models/User');
 const { authenticateToken, getUserIdFromRequest } = require('../utils/jwt');
 
 const router = express.Router();
@@ -69,6 +70,85 @@ router.post('/log', async (req, res) => {
     res.status(500).json({
       error: 'Internal Server Error',
       message: 'Failed to log water intake'
+    });
+  }
+});
+
+/**
+ * @route   POST /api/water/log/quick
+ * @desc    Quick log water intake using user's default amount (for notifications)
+ * @access  Private
+ */
+router.post('/log/quick', async (req, res) => {
+  try {
+    const userId = getUserIdFromRequest(req);
+    const { customAmount, notes } = req.body;
+
+    // Get user's default water amount
+    const user = await User.findById(userId).select('defaultWaterAmount');
+    if (!user) {
+      return res.status(404).json({
+        error: 'User Not Found',
+        message: 'User not found'
+      });
+    }
+
+    // Use custom amount if provided, otherwise use default
+    const amountMl = customAmount || user.defaultWaterAmount;
+
+    // Validate amount
+    if (!amountMl || amountMl <= 0) {
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: 'Amount must be greater than 0'
+      });
+    }
+
+    if (amountMl > 2000) {
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: 'Single intake cannot exceed 2000ml'
+      });
+    }
+
+    // Create new water log entry
+    const waterLog = new WaterLog({
+      userId: userId,
+      amountMl: amountMl,
+      type: customAmount ? 'custom' : 'notification',
+      notes: notes || 'Quick log from notification',
+      timestamp: new Date()
+    });
+
+    await waterLog.save();
+
+    res.status(201).json({
+      message: 'Water intake logged quickly',
+      waterLog: {
+        id: waterLog._id,
+        amountMl: waterLog.amountMl,
+        type: waterLog.type,
+        notes: waterLog.notes,
+        timestamp: waterLog.timestamp
+      },
+      wasDefault: !customAmount
+    });
+
+    console.log(`💧 Quick water logged: ${amountMl}ml for user ${userId} ${customAmount ? '(custom)' : '(default)'}`);
+
+  } catch (error) {
+    console.error('Quick water logging error:', error);
+
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: Object.values(error.errors).map(e => e.message).join(', ')
+      });
+    }
+
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Failed to log water intake quickly'
     });
   }
 });

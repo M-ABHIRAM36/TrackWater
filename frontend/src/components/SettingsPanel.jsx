@@ -16,6 +16,7 @@ const SettingsPanel = ({ user }) => {
   const { updateUser } = useAuth()
   const [settings, setSettings] = useState({
     dailyGoal: user?.dailyGoal || 2000,
+    defaultWaterAmount: user?.defaultWaterAmount || 250,
     notificationStartHour: user?.notificationStartHour || 5,
     notificationEndHour: user?.notificationEndHour || 0,
     notificationsEnabled: user?.notificationsEnabled || true,
@@ -31,6 +32,7 @@ const SettingsPanel = ({ user }) => {
     if (user) {
       setSettings({
         dailyGoal: user.dailyGoal || 2000,
+        defaultWaterAmount: user.defaultWaterAmount || 250,
         notificationStartHour: user.notificationStartHour || 5,
         notificationEndHour: user.notificationEndHour || 0,
         notificationsEnabled: user.notificationsEnabled || true,
@@ -57,6 +59,12 @@ const SettingsPanel = ({ user }) => {
     }
     if (settings.dailyGoal > 5000) {
       errors.dailyGoal = 'Daily goal cannot exceed 5000ml'
+    }
+    if (settings.defaultWaterAmount < 50) {
+      errors.defaultWaterAmount = 'Default amount must be at least 50ml'
+    }
+    if (settings.defaultWaterAmount > 1000) {
+      errors.defaultWaterAmount = 'Default amount cannot exceed 1000ml'
     }
     if (settings.name.length > 50) {
       errors.name = 'Name cannot exceed 50 characters'
@@ -89,6 +97,7 @@ const SettingsPanel = ({ user }) => {
       const result = await updateUser({
         name: settings.name,
         dailyGoal: settings.dailyGoal,
+        defaultWaterAmount: settings.defaultWaterAmount,
         notificationStartHour: settings.notificationStartHour,
         notificationEndHour: settings.notificationEndHour,
         notificationsEnabled: settings.notificationsEnabled
@@ -244,6 +253,50 @@ const SettingsPanel = ({ user }) => {
                 {goal}ml
               </button>
             ))}
+          </div>
+
+          {/* Default Water Amount */}
+          <div className="pt-4 border-t border-gray-200">
+            <div>
+              <label htmlFor="defaultWaterAmount" className="block text-sm font-medium text-gray-700 mb-2">
+                Default Notification Amount (ml)
+              </label>
+              <input
+                id="defaultWaterAmount"
+                type="number"
+                min="50"
+                max="1000"
+                step="25"
+                value={settings.defaultWaterAmount}
+                onChange={(e) => handleInputChange('defaultWaterAmount', parseInt(e.target.value) || 250)}
+                className={`input-field ${validationErrors.defaultWaterAmount ? 'border-red-300 focus:border-red-500' : ''}`}
+              />
+              {validationErrors.defaultWaterAmount && (
+                <p className="text-sm text-red-600 mt-1">{validationErrors.defaultWaterAmount}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                💧 Amount logged when you click "Drink Water" on notifications (saves time!)
+              </p>
+            </div>
+
+            {/* Default Amount Presets */}
+            <div className="flex flex-wrap gap-2 mt-3">
+              <span className="text-sm text-gray-600">Quick amounts:</span>
+              {[150, 200, 250, 300, 350, 500].map(amount => (
+                <button
+                  key={amount}
+                  type="button"
+                  onClick={() => handleInputChange('defaultWaterAmount', amount)}
+                  className={`px-3 py-1 text-sm rounded-full border transition-colors ${
+                    settings.defaultWaterAmount === amount
+                      ? 'bg-blue-100 border-blue-300 text-blue-800'
+                      : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {amount}ml
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
