@@ -31,8 +31,24 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // CORS configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173', // Vite dev server
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn('⚠️ CORS blocked request from:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -53,6 +69,22 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/hydration
 .catch((error) => {
   console.error('❌ MongoDB connection error:', error);
   process.exit(1);
+});
+
+// Root route for deployment platforms
+app.get('/', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    message: 'Hydration Reminder API is running successfully!',
+    version: '1.0.0',
+    endpoints: {
+      auth: '/api/auth',
+      water: '/api/water', 
+      notifications: '/api/notifications',
+      health: '/health'
+    },
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Health check endpoint
