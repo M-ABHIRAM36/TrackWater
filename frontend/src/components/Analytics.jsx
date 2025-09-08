@@ -12,7 +12,7 @@ import {
   ArcElement,
 } from 'chart.js'
 import { Line, Bar, Doughnut } from 'react-chartjs-2'
-import { api } from '../api/api'
+import apiMethods from '../api/api'
 import { format, subDays, startOfWeek, endOfWeek } from 'date-fns'
 
 // Register ChartJS components
@@ -51,10 +51,10 @@ const Analytics = () => {
     setLoading(true)
     try {
       const [dailyRes, weeklyRes, monthlyRes, hourlyRes] = await Promise.all([
-        api.get(`/water/analytics/daily?days=${timeRange.daily}`),
-        api.get(`/water/analytics/weekly?weeks=${timeRange.weekly}`),
-        api.get(`/water/analytics/monthly?months=${timeRange.monthly}`),
-        api.get('/water/analytics/hourly')
+        apiMethods.get(`/water/analytics/daily?days=${timeRange.daily}`),
+        apiMethods.get(`/water/analytics/weekly?weeks=${timeRange.weekly}`),
+        apiMethods.get(`/water/analytics/monthly?months=${timeRange.monthly}`),
+        apiMethods.get('/water/analytics/hourly')
       ])
 
       setData({

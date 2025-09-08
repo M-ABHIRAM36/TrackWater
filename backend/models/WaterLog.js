@@ -26,7 +26,7 @@ const waterLogSchema = new mongoose.Schema({
   // Optional: Track what type of intake this was
   type: {
     type: String,
-    enum: ['half-glass', 'full-glass', 'half-liter', 'liter', 'custom'],
+    enum: ['half-glass', 'full-glass', 'half-liter', 'liter', 'custom', 'notification'],
     default: 'custom'
   },
   // Optional: Add notes about the intake

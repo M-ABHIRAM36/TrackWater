@@ -1,0 +1,37 @@
+# Water Alert Sound File
+
+This directory should contain a 10-second water alert sound file named `alert.mp3`.
+
+## Required File:
+- **File name:** `alert.mp3`
+- **Duration:** 10 seconds (maximum)
+- **Format:** MP3
+- **Size:** Keep under 1MB for web performance
+- **Volume:** Should be pleasant and not too loud
+
+## Sound Suggestions:
+1. **Water droplets** - gentle water drop sounds
+2. **Soft bell chimes** - peaceful notification sound  
+3. **Nature sounds** - gentle rain or stream sounds
+4. **Meditation bell** - soft, calming tone
+
+## How to Add:
+1. Find or create a suitable 10-second audio clip
+2. Convert it to MP3 format if needed
+3. Name it `alert.mp3`
+4. Place it in this directory: `frontend/public/sounds/alert.mp3`
+
+## Free Sound Resources:
+- Freesound.org
+- Pixabay Audio
+- YouTube Audio Library (download and convert)
+- Audacity (create your own)
+
+## Testing:
+After adding the file, test the notification functionality:
+1. Enable push notifications in the app
+2. Send a test notification
+3. Click the notification to hear the 10-second alert
+
+## Fallback:
+If the audio file is missing or fails to load, the app will show a visual water alert animation instead.

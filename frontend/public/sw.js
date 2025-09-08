@@ -5,8 +5,8 @@ const CACHE_NAME = 'hydration-app-v1'
 const STATIC_CACHE_URLS = [
   '/',
   '/manifest.json',
-  '/icon-192x192.png',
-  '/icon-512x512.png',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
   '/sounds/alert.mp3'
 ]
 
@@ -112,8 +112,8 @@ self.addEventListener('push', (event) => {
   let notificationData = {
     title: 'Drink Water! 💧',
     body: 'Stay Hydrated. Time to drink some water!',
-    icon: '/icon-192x192.png',
-    badge: '/badge-72x72.png',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/badge-72x72.png',
     tag: 'hydration-reminder',
     requireInteraction: false,
     silent: false,
@@ -158,39 +158,45 @@ self.addEventListener('push', (event) => {
       data: notificationData.data,
       actions: notificationData.actions
     }
-  )
+  ).then(() => {
+    console.log('[SW] Notification displayed successfully')
+    // Optional: Play sound immediately when notification appears
+    // Uncomment the next line if you want sound on notification appearance
+    // return playNotificationSound()
+  })
 
   event.waitUntil(notificationPromise)
 })
 
 // Notification click event - handle user interaction with notifications
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification clicked:', event.action)
+  console.log('[SW] ✅ NOTIFICATION CLICKED! Action:', event.action || 'default')
+  console.log('[SW] Notification data:', event.notification.data)
+  console.log('[SW] Notification title:', event.notification.title)
   
   event.notification.close()
 
   const action = event.action
   const notificationData = event.notification.data || {}
 
-  // Handle different actions
-  if (action === 'log-water') {
-    // Open app and focus on water logging
-    event.waitUntil(
-      openAppAndFocusTab('/?action=log-water')
-    )
-  } else if (action === 'snooze') {
-    // Snooze for 30 minutes (show another notification)
-    event.waitUntil(
-      scheduleSnoozeNotification()
-    )
-  } else {
-    // Default action - open app and play sound
-    event.waitUntil(
-      openAppAndFocusTab('/?notification=clicked').then(() => {
-        return playNotificationSound()
-      })
-    )
-  }
+  // ALWAYS play water alert sound first for any notification click
+  event.waitUntil(
+    playNotificationSound().then(() => {
+      // Then handle specific actions
+      if (action === 'log-water') {
+        // Log water automatically and show success
+        return logWaterAutomatically().then(() => {
+          return openAppAndFocusTab('/?action=water-logged')
+        })
+      } else if (action === 'snooze') {
+        // Snooze for 30 minutes (show another notification)
+        return scheduleSnoozeNotification()
+      } else {
+        // Default action - open app
+        return openAppAndFocusTab('/?notification=clicked')
+      }
+    })
+  )
 })
 
 // Helper function to open app and focus tab
@@ -223,18 +229,40 @@ async function openAppAndFocusTab(url = '/') {
   }
 }
 
-// Helper function to play notification sound
+// Helper function to play 10-second water alert sound
 async function playNotificationSound() {
   try {
-    const clients = await self.clients.matchAll()
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'PLAY_SOUND',
-        sound: '/sounds/alert.mp3'
-      })
+    console.log('[SW] Playing notification sound - looking for clients...')
+    const clients = await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
     })
+    
+    console.log(`[SW] Found ${clients.length} clients`)
+    
+    if (clients.length > 0) {
+      // Send message to all active clients to play 10-second water alert
+      const message = {
+        type: 'PLAY_WATER_ALERT',
+        soundUrl: '/sounds/alert.mp3',
+        duration: 6000, // 6 seconds (actual audio length)
+        volume: 1.0 // Full volume for notification clicks
+      }
+      
+      clients.forEach((client, index) => {
+        console.log(`[SW] Sending water alert message to client ${index + 1}`)
+        client.postMessage(message)
+      })
+      
+      console.log('[SW] ✅ Water alert sound message sent to all clients')
+      
+      // Wait a moment to ensure message is processed
+      await new Promise(resolve => setTimeout(resolve, 100))
+    } else {
+      console.warn('[SW] ⚠️ No active clients found to play sound')
+    }
   } catch (error) {
-    console.error('[SW] Failed to play sound:', error)
+    console.error('[SW] ❌ Failed to play water alert sound:', error)
   }
 }
 
@@ -248,7 +276,7 @@ async function scheduleSnoozeNotification() {
     // Show immediate feedback
     self.registration.showNotification('Reminder Snoozed ⏰', {
       body: 'We\'ll remind you again in 30 minutes',
-      icon: '/icon-192x192.png',
+      icon: '/icons/icon-192x192.png',
       tag: 'snooze-confirmation',
       requireInteraction: false,
       silent: true,
@@ -326,6 +354,96 @@ async function cacheWaterLogOffline(logData) {
   }
 }
 
+// Helper function to automatically log water using quick endpoint
+const logWaterAutomatically = async () => {
+  try {
+    console.log('[SW] 💧 Auto-logging water from notification click...')
+    
+    // Get stored JWT token from localStorage (we can't access it directly from SW)
+    // So we'll send a message to the client to handle the API call
+    const clients = await self.clients.matchAll({ type: 'window' })
+    
+    if (clients.length > 0) {
+      clients[0].postMessage({
+        type: 'LOG_WATER_AUTOMATICALLY',
+        timestamp: Date.now()
+      })
+      console.log('[SW] ✅ Sent auto-log water message to client')
+    } else {
+      console.warn('[SW] ⚠️ No active clients to handle water logging')
+    }
+    
+    // Show success notification
+    await self.registration.showNotification('Water Logged! ✅', {
+      body: 'Great job staying hydrated!',
+      icon: '/icons/icon-192x192.png',
+      tag: 'water-logged-success',
+      requireInteraction: false,
+      silent: true,
+      data: { action: 'success' }
+    })
+    
+  } catch (error) {
+    console.error('[SW] Error auto-logging water:', error)
+    
+    // Show error notification
+    await self.registration.showNotification('Water Log Failed ❌', {
+      body: 'Please open the app to log manually',
+      icon: '/icons/icon-192x192.png',
+      tag: 'water-log-error',
+      requireInteraction: true,
+      data: { action: 'error' }
+    })
+  }
+}
+
+// Helper function to test notification click behavior
+const testNotificationClick = async () => {
+  try {
+    console.log('[SW] Testing notification click behavior...')
+    await playNotificationSound()
+    console.log('[SW] Notification click test completed')
+  } catch (error) {
+    console.error('[SW] Test notification click failed:', error)
+  }
+}
+
+// Create a test notification that we can click
+const createTestNotification = async () => {
+  try {
+    console.log('[SW] Creating test notification...')
+    
+    await self.registration.showNotification('Test Water Alert! 💧', {
+      body: 'Click me to test the water alert sound!',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      tag: 'test-water-alert',
+      requireInteraction: true, // Forces user to interact
+      silent: false,
+      data: {
+        url: '/',
+        action: 'test-water-alert',
+        timestamp: Date.now()
+      },
+      actions: [
+        {
+          action: 'test-sound',
+          title: '🔊 Test Sound',
+          icon: '/icons/icon-192x192.png'
+        }
+      ]
+    })
+    
+    console.log('[SW] ✅ Test notification created! Click it to test sound.')
+  } catch (error) {
+    console.error('[SW] Failed to create test notification:', error)
+  }
+}
+
+// Expose test functions for debugging
+self.testNotificationClick = testNotificationClick
+self.createTestNotification = createTestNotification
+
 // Error event
 self.addEventListener('error', (event) => {
   console.error('[SW] Service worker error:', event.error)
@@ -338,3 +456,5 @@ self.addEventListener('unhandledrejection', (event) => {
 })
 
 console.log('[SW] Service worker loaded successfully')
+console.log('[SW] 🧪 Test notification click: self.testNotificationClick()')
+console.log('[SW] 🔔 Create test notification: self.createTestNotification()')

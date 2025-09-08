@@ -18,29 +18,24 @@ let cronJob;
  */
 const sendHydrationReminders = async () => {
   try {
-    console.log('⏰ Starting hourly hydration reminder...');
-
-    // Get current hour
-    const currentHour = new Date().getHours();
-    
-    // Only send notifications between 1 AM and 12 PM (1-12 o'clock)
-    if (currentHour < 1 || currentHour > 12) {
-      console.log(`⏰ Skipping notifications for hour ${currentHour} (outside 1-12 range)`);
-      return;
-    }
+    const currentHour = new Date().getUTCHours();
+    console.log(`⏰ Starting hourly hydration reminder for hour ${currentHour}:00 UTC...`);
 
     // Get all active subscriptions with users who have notifications enabled
     const subscriptions = await Subscription.getAllActiveSubscriptions();
     
     if (subscriptions.length === 0) {
-      console.log('📭 No active subscriptions found');
+      console.log('📝 No active subscriptions found');
       return;
     }
 
-    // Filter subscriptions for users with notifications enabled
-    const enabledSubscriptions = subscriptions.filter(sub => 
-      sub.userId && sub.userId.notificationsEnabled
-    );
+    // Filter subscriptions for users who should receive notifications at this hour
+    const enabledSubscriptions = subscriptions.filter(sub => {
+      if (!sub.userId) return false;
+      
+      // Use the user model method to check timing
+      return sub.userId.shouldReceiveNotificationAtHour(currentHour);
+    });
 
     if (enabledSubscriptions.length === 0) {
       console.log('🔕 No users with notifications enabled');
@@ -182,9 +177,9 @@ const start = () => {
     return;
   }
 
-  // Schedule hydration reminders every hour from 1 AM to 12 PM
-  // Cron pattern: "0 1-12 * * *" = At minute 0 of every hour from 1 through 12
-  cronJob = cron.schedule('0 1-12 * * *', sendHydrationReminders, {
+  // Schedule hydration reminders every hour (we'll filter by user preferences)
+  // Cron pattern: "0 * * * *" = At minute 0 of every hour
+  cronJob = cron.schedule('0 * * * *', sendHydrationReminders, {
     scheduled: true,
     timezone: 'UTC' // Use UTC, users can set their timezone in profile
   });
@@ -196,7 +191,7 @@ const start = () => {
   });
 
   console.log('⏰ Hydration reminder cron jobs started');
-  console.log('📅 Schedule: Every hour from 1 AM to 12 PM UTC');
+  console.log('📅 Schedule: Every hour (filtered by user preferences)');
   console.log('🧹 Cleanup: Daily at 3 AM UTC');
 };
 
