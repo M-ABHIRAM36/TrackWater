@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react'
+import { initAudio, playWaterDrops, isAudioSupported } from '../utils/audioGenerator'
 
 /**
  * AudioAlert Component
@@ -23,10 +24,30 @@ const AudioAlert = () => {
       navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage)
     }
     
+    // Add click listener to enable audio on user interaction
+    const enableAudioOnClick = () => {
+      if (audioRef.current) {
+        // Try to play a silent sound to enable audio context
+        audioRef.current.volume = 0
+        audioRef.current.play().then(() => {
+          audioRef.current.pause()
+          audioRef.current.currentTime = 0
+          audioRef.current.volume = 0.7 // Reset volume
+          console.log('[AudioAlert] Audio context enabled by user interaction')
+        }).catch(() => {
+          console.log('[AudioAlert] Audio context still blocked')
+        })
+      }
+    }
+    
+    // Enable audio on any user click
+    document.addEventListener('click', enableAudioOnClick, { once: true })
+    
     return () => {
       if (navigator.serviceWorker) {
         navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage)
       }
+      document.removeEventListener('click', enableAudioOnClick)
     }
   }, [])
 
@@ -78,35 +99,111 @@ const AudioAlert = () => {
       console.log(`[AudioAlert] Playing 10-second water alert sound from: ${soundUrl}`)
       
       if (audioRef.current) {
+        // Reset audio element
+        audioRef.current.pause()
+        audioRef.current.currentTime = 0
         audioRef.current.src = soundUrl
         audioRef.current.volume = volume
         audioRef.current.loop = false
         
-        const playPromise = audioRef.current.play()
-        
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              console.log(`[AudioAlert] Water alert sound started - will play for ${duration}ms`)
+        // Wait for the audio to load before playing
+        const tryToPlay = () => {
+          // Log audio element state for debugging
+          console.log('[AudioAlert] Audio element state:', {
+            src: audioRef.current.src,
+            readyState: audioRef.current.readyState,
+            volume: audioRef.current.volume,
+            duration: audioRef.current.duration,
+            paused: audioRef.current.paused,
+            muted: audioRef.current.muted
+          })
+          
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                console.log(`[AudioAlert] ✅ Water alert sound started successfully - will play for ${duration}ms`)
+                console.log('[AudioAlert] Audio playing state:', {
+                  currentTime: audioRef.current.currentTime,
+                  duration: audioRef.current.duration,
+                  volume: audioRef.current.volume,
+                  muted: audioRef.current.muted
+                })
+                
+                // Stop after the specified duration
+                setTimeout(() => {
+                  if (audioRef.current && !audioRef.current.paused) {
+                    audioRef.current.pause()
+                    audioRef.current.currentTime = 0
+                    console.log('[AudioAlert] ⏹️ Water alert sound stopped after timeout')
+                  }
+                }, duration)
+              })
+            .catch(async (error) => {
+              console.warn('[AudioAlert] ❌ Failed to play MP3 water alert sound:', error.name, error.message)
+              // Try Web Audio API fallback
+              console.log('[AudioAlert] Attempting Web Audio API fallback...')
               
-              // Stop after the specified duration
-              setTimeout(() => {
-                if (audioRef.current) {
-                  audioRef.current.pause()
-                  audioRef.current.currentTime = 0
-                  console.log('[AudioAlert] Water alert sound stopped')
+              if (isAudioSupported()) {
+                try {
+                  await initAudio()
+                  await playWaterDrops(volume)
+                  console.log('[AudioAlert] ✅ Web Audio API fallback successful')
+                  return // Success, no need to show visual alert
+                } catch (webAudioError) {
+                  console.warn('[AudioAlert] ❌ Web Audio API fallback also failed:', webAudioError.message)
                 }
-              }, duration)
+              }
+              
+              // Both audio methods failed, show visual alert with appropriate message
+              if (error.name === 'NotAllowedError') {
+                console.warn('[AudioAlert] Audio blocked by browser autoplay policy')
+                showVisualWaterAlert('Audio blocked - click anywhere to enable')
+              } else if (error.name === 'NotSupportedError') {
+                console.warn('[AudioAlert] Audio format not supported')
+                showVisualWaterAlert('Audio format not supported')
+              } else if (error.name === 'AbortError') {
+                console.warn('[AudioAlert] Audio playback aborted')
+                showVisualWaterAlert('Audio playback interrupted')
+              } else {
+                console.warn('[AudioAlert] All audio methods failed')
+                showVisualWaterAlert('Audio unavailable - visual alert only')
+              }
             })
-            .catch(error => {
-              console.warn('[AudioAlert] Failed to play water alert sound:', error)
-              showVisualWaterAlert()
-            })
+          }
         }
+        
+        // If audio is ready, play immediately, otherwise wait for it to load
+        if (audioRef.current.readyState >= 2) { // HAVE_CURRENT_DATA or better
+          tryToPlay()
+        } else {
+          console.log('[AudioAlert] Audio not ready, waiting for load event...')
+          const onCanPlay = () => {
+            console.log('[AudioAlert] Audio ready, attempting to play')
+            tryToPlay()
+          }
+          const onError = () => {
+            console.error('[AudioAlert] Audio loading error, trying Web Audio API fallback')
+            initAudio().then(() => playWaterDrops(volume)).catch(() => 
+              showVisualWaterAlert('Audio file error - using visual alert')
+            )
+          }
+          
+          audioRef.current.addEventListener('canplay', onCanPlay, { once: true })
+          audioRef.current.addEventListener('error', onError, { once: true })
+          
+          // Only load if not already loading/loaded
+          if (audioRef.current.readyState === 0) { // HAVE_NOTHING
+            console.log('[AudioAlert] Loading audio file...')
+            audioRef.current.load()
+          }
+        }
+      } else {
+        console.error('[AudioAlert] Audio element not available')
+        showVisualWaterAlert('Audio not available')
       }
     } catch (error) {
-      console.error('[AudioAlert] Error playing water alert sound:', error)
-      showVisualWaterAlert()
+      console.error('[AudioAlert] Error in playWaterAlert:', error)
+      showVisualWaterAlert('Audio system error')
     }
   }
   
@@ -127,10 +224,15 @@ const AudioAlert = () => {
     setTimeout(() => notification.remove(), 5000)
   }
   
-  const showVisualWaterAlert = () => {
+  const showVisualWaterAlert = (errorMessage = null) => {
     // Enhanced visual notification for water alert with 10-second animation
     const notification = document.createElement('div')
     notification.className = 'fixed top-4 right-4 bg-gradient-to-r from-water-400 to-blue-500 text-white px-8 py-6 rounded-xl shadow-2xl z-50 transform transition-all duration-500'
+    
+    const subtitle = errorMessage 
+      ? `<p class="text-sm opacity-90">🔇 ${errorMessage}</p>`
+      : '<p class="text-sm opacity-90">10-second hydration reminder</p>'
+    
     notification.innerHTML = `
       <div class="flex items-center">
         <div class="animate-bounce mr-3">
@@ -138,7 +240,7 @@ const AudioAlert = () => {
         </div>
         <div>
           <p class="font-bold text-lg">Time to Drink Water!</p>
-          <p class="text-sm opacity-90">10-second hydration reminder</p>
+          ${subtitle}
           <div class="w-full bg-white bg-opacity-30 rounded-full h-1 mt-2">
             <div class="bg-white h-1 rounded-full animate-pulse" id="water-progress"></div>
           </div>
@@ -163,20 +265,126 @@ const AudioAlert = () => {
     }, 10000)
   }
 
+  // Test sound function for debugging
+  const testSound = async (useWebAudio = false) => {
+    console.log('[AudioAlert] Testing water alert sound...')
+    
+    if (useWebAudio) {
+      console.log('[AudioAlert] Testing Web Audio API directly')
+      try {
+        await initAudio()
+        await playWaterDrops(0.5)
+        console.log('[AudioAlert] Web Audio API test completed')
+      } catch (error) {
+        console.error('[AudioAlert] Web Audio API test failed:', error)
+      }
+    } else {
+      playWaterAlert('/sounds/alert.mp3', 3000, 0.5) // 3 seconds at 50% volume for testing
+    }
+  }
+  
   // Preload sound when component mounts
   const preloadSound = () => {
     if (audioRef.current) {
       audioRef.current.load()
     }
   }
+  
+  // Volume test function
+  const testVolume = async (testVolume = 1.0) => {
+    if (!audioRef.current) {
+      console.error('[AudioAlert] No audio element available')
+      return
+    }
+    
+    console.log(`[AudioAlert] Testing volume at ${testVolume * 100}%`)
+    
+    // Reset and prepare audio
+    audioRef.current.pause()
+    audioRef.current.currentTime = 0
+    audioRef.current.volume = testVolume
+    audioRef.current.muted = false
+    
+    console.log('[AudioAlert] Audio element state before test:', {
+      volume: audioRef.current.volume,
+      muted: audioRef.current.muted,
+      readyState: audioRef.current.readyState,
+      src: audioRef.current.src
+    })
+    
+    try {
+      await audioRef.current.play()
+      console.log('✅ Audio playback started successfully')
+      
+      // Stop after 2 seconds
+      setTimeout(() => {
+        if (audioRef.current && !audioRef.current.paused) {
+          audioRef.current.pause()
+          audioRef.current.currentTime = 0
+          console.log('⏹️ Volume test completed')
+        }
+      }, 2000)
+    } catch (error) {
+      console.error('❌ Volume test failed:', error.name, error.message)
+      
+      if (error.name === 'NotAllowedError') {
+        console.warn('⚠️ Audio blocked by browser autoplay policy - try clicking on the page first')
+      }
+    }
+  }
+  
+  // Audio diagnostics function
+  const audioDiagnostics = () => {
+    if (audioRef.current) {
+      console.log('[AudioAlert] Audio Diagnostics:', {
+        src: audioRef.current.src,
+        volume: audioRef.current.volume,
+        muted: audioRef.current.muted,
+        readyState: audioRef.current.readyState,
+        duration: audioRef.current.duration,
+        paused: audioRef.current.paused,
+        currentTime: audioRef.current.currentTime,
+        autoplay: audioRef.current.autoplay,
+        controls: audioRef.current.controls,
+        networkState: audioRef.current.networkState
+      })
+    } else {
+      console.log('[AudioAlert] Audio element not available')
+    }
+    
+    console.log('[AudioAlert] System Audio Info:', {
+      userAgent: navigator.userAgent,
+      audioSupported: isAudioSupported(),
+      currentURL: window.location.href,
+      hasUserInteracted: document.hasStoredUserActivation || 'unknown'
+    })
+    
+    // Check if page has been interacted with
+    console.log('ℹ️ To test volume: window.testVolume(0.8) // 80% volume')
+    console.log('ℹ️ To test max volume: window.testVolume(1.0) // 100% volume')
+  }
+  
+  // Expose test functions globally for debugging
+  useEffect(() => {
+    window.testWaterAlert = testSound
+    window.audioDebug = audioDiagnostics
+    window.testVolume = testVolume
+    return () => {
+      delete window.testWaterAlert
+      delete window.audioDebug
+      delete window.testVolume
+    }
+  }, [])
 
   return (
     <audio 
       ref={audioRef}
       src="/sounds/alert.mp3"
-      preload="auto"
+      preload="metadata"
       className="hidden"
-      onCanPlayThrough={preloadSound}
+      onCanPlayThrough={() => console.log('[AudioAlert] Audio ready to play')}
+      onError={(e) => console.error('[AudioAlert] Audio element error:', e.target.error?.message || 'Unknown error')}
+      volume={0.7}
     />
   )
 }
