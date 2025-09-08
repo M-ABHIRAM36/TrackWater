@@ -158,14 +158,21 @@ self.addEventListener('push', (event) => {
       data: notificationData.data,
       actions: notificationData.actions
     }
-  )
+  ).then(() => {
+    console.log('[SW] Notification displayed successfully')
+    // Optional: Play sound immediately when notification appears
+    // Uncomment the next line if you want sound on notification appearance
+    // return playNotificationSound()
+  })
 
   event.waitUntil(notificationPromise)
 })
 
 // Notification click event - handle user interaction with notifications
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification clicked:', event.action)
+  console.log('[SW] ✅ NOTIFICATION CLICKED! Action:', event.action || 'default')
+  console.log('[SW] Notification data:', event.notification.data)
+  console.log('[SW] Notification title:', event.notification.title)
   
   event.notification.close()
 
@@ -356,8 +363,41 @@ const testNotificationClick = async () => {
   }
 }
 
-// Expose test function for debugging
+// Create a test notification that we can click
+const createTestNotification = async () => {
+  try {
+    console.log('[SW] Creating test notification...')
+    
+    await self.registration.showNotification('Test Water Alert! 💧', {
+      body: 'Click me to test the water alert sound!',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      tag: 'test-water-alert',
+      requireInteraction: true, // Forces user to interact
+      silent: false,
+      data: {
+        url: '/',
+        action: 'test-water-alert',
+        timestamp: Date.now()
+      },
+      actions: [
+        {
+          action: 'test-sound',
+          title: '🔊 Test Sound',
+          icon: '/icons/icon-192x192.png'
+        }
+      ]
+    })
+    
+    console.log('[SW] ✅ Test notification created! Click it to test sound.')
+  } catch (error) {
+    console.error('[SW] Failed to create test notification:', error)
+  }
+}
+
+// Expose test functions for debugging
 self.testNotificationClick = testNotificationClick
+self.createTestNotification = createTestNotification
 
 // Error event
 self.addEventListener('error', (event) => {
@@ -372,3 +412,4 @@ self.addEventListener('unhandledrejection', (event) => {
 
 console.log('[SW] Service worker loaded successfully')
 console.log('[SW] 🧪 Test notification click: self.testNotificationClick()')
+console.log('[SW] 🔔 Create test notification: self.createTestNotification()')
