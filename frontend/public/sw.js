@@ -5,8 +5,8 @@ const CACHE_NAME = 'hydration-app-v1'
 const STATIC_CACHE_URLS = [
   '/',
   '/manifest.json',
-  '/icon-192x192.png',
-  '/icon-512x512.png',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
   '/sounds/alert.mp3'
 ]
 
@@ -112,8 +112,8 @@ self.addEventListener('push', (event) => {
   let notificationData = {
     title: 'Drink Water! 💧',
     body: 'Stay Hydrated. Time to drink some water!',
-    icon: '/icon-192x192.png',
-    badge: '/badge-72x72.png',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/badge-72x72.png',
     tag: 'hydration-reminder',
     requireInteraction: false,
     silent: false,
@@ -223,18 +223,26 @@ async function openAppAndFocusTab(url = '/') {
   }
 }
 
-// Helper function to play notification sound
+// Helper function to play 10-second water alert sound
 async function playNotificationSound() {
   try {
     const clients = await self.clients.matchAll()
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'PLAY_SOUND',
-        sound: '/sounds/alert.mp3'
+    if (clients.length > 0) {
+      // Send message to active client to play 10-second water alert
+      clients.forEach(client => {
+        client.postMessage({
+          type: 'PLAY_WATER_ALERT',
+          soundUrl: '/sounds/alert.mp3',
+          duration: 10000, // 10 seconds
+          volume: 0.7 // Comfortable volume level
+        })
       })
-    })
+      console.log('[SW] Sent water alert sound message to clients')
+    } else {
+      console.log('[SW] No active clients to play sound')
+    }
   } catch (error) {
-    console.error('[SW] Failed to play sound:', error)
+    console.error('[SW] Failed to play water alert sound:', error)
   }
 }
 
@@ -248,7 +256,7 @@ async function scheduleSnoozeNotification() {
     // Show immediate feedback
     self.registration.showNotification('Reminder Snoozed ⏰', {
       body: 'We\'ll remind you again in 30 minutes',
-      icon: '/icon-192x192.png',
+      icon: '/icons/icon-192x192.png',
       tag: 'snooze-confirmation',
       requireInteraction: false,
       silent: true,

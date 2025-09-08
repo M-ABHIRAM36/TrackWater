@@ -3,7 +3,7 @@ import { useAuth } from '../App'
 import WaterLogger from '../components/WaterLogger'
 import Analytics from '../components/Analytics'
 import NotificationToggle from '../components/NotificationToggle'
-import { api } from '../api/api'
+import apiMethods from '../api/api'
 
 const Dashboard = () => {
   const { user, logout } = useAuth()
@@ -21,7 +21,7 @@ const Dashboard = () => {
 
   const loadTodayData = async () => {
     try {
-      const response = await api.get('/water/analytics/today')
+      const response = await apiMethods.get('/water/analytics/today')
       setTodayData(response.data.today)
     } catch (error) {
       console.error('Failed to load today\'s data:', error)

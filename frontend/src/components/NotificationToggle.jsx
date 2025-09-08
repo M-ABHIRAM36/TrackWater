@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { api } from '../api/api'
+import apiMethods from '../api/api'
 
 const NotificationToggle = () => {
   const [isSupported, setIsSupported] = useState(false)
@@ -27,7 +27,7 @@ const NotificationToggle = () => {
 
   const loadVapidKey = async () => {
     try {
-      const response = await api.get('/notifications/vapid-public-key')
+      const response = await apiMethods.get('/notifications/vapid-public-key')
       setVapidKey(response.data.publicKey)
     } catch (error) {
       console.error('Failed to load VAPID key:', error)
@@ -43,7 +43,7 @@ const NotificationToggle = () => {
         
         if (subscription) {
           // Verify subscription exists on server
-          const response = await api.get('/notifications/subscriptions')
+          const response = await apiMethods.get('/notifications/subscriptions')
           const serverSubscriptions = response.data.subscriptions || []
           const subscriptionExists = serverSubscriptions.some(
             sub => sub.endpoint === subscription.endpoint
@@ -116,10 +116,10 @@ const NotificationToggle = () => {
         userAgent: navigator.userAgent
       }
 
-      await api.post('/notifications/subscribe', subscriptionData)
+      await apiMethods.post('/notifications/subscribe', subscriptionData)
       
       // Update user notification preference
-      await api.post('/notifications/toggle', { enabled: true })
+      await apiMethods.post('/notifications/toggle', { enabled: true })
 
       setIsSubscribed(true)
       showSuccessMessage('Notifications enabled successfully!')
@@ -146,13 +146,13 @@ const NotificationToggle = () => {
         await subscription.unsubscribe()
         
         // Remove from server
-        await api.post('/notifications/unsubscribe', {
+        await apiMethods.post('/notifications/unsubscribe', {
           endpoint: subscription.endpoint
         })
       }
 
       // Update user notification preference
-      await api.post('/notifications/toggle', { enabled: false })
+      await apiMethods.post('/notifications/toggle', { enabled: false })
 
       setIsSubscribed(false)
       showSuccessMessage('Notifications disabled successfully!')
@@ -170,7 +170,7 @@ const NotificationToggle = () => {
 
     setLoading(true)
     try {
-      await api.post('/notifications/test')
+      await apiMethods.post('/notifications/test')
       showSuccessMessage('Test notification sent!')
     } catch (error) {
       console.error('Failed to send test:', error)

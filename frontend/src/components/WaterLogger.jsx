@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { api } from '../api/api'
+import apiMethods from '../api/api'
 
 const WaterLogger = ({ onWaterLogged, todayTotal = 0, dailyGoal = 2000 }) => {
   const [isLogging, setIsLogging] = useState(false)
@@ -22,7 +22,7 @@ const WaterLogger = ({ onWaterLogged, todayTotal = 0, dailyGoal = 2000 }) => {
 
   const loadRecentLogs = async () => {
     try {
-      const response = await api.get('/water/logs', { 
+      const response = await apiMethods.get('/water/logs', { 
         params: { limit: 5 } 
       })
       setRecentLogs(response.data.logs || [])
@@ -39,7 +39,7 @@ const WaterLogger = ({ onWaterLogged, todayTotal = 0, dailyGoal = 2000 }) => {
     setIsLogging(true)
     
     try {
-      const response = await api.post('/water/log', {
+      const response = await apiMethods.post('/water/log', {
         amountMl: parseInt(amount),
         type: type,
         timestamp: new Date().toISOString()
@@ -112,7 +112,7 @@ const WaterLogger = ({ onWaterLogged, todayTotal = 0, dailyGoal = 2000 }) => {
 
   const deleteLog = async (logId) => {
     try {
-      await api.delete(`/water/logs/${logId}`)
+      await apiMethods.delete(`/water/logs/${logId}`)
       await loadRecentLogs()
       if (onWaterLogged) {
         onWaterLogged(-1) // Trigger refresh

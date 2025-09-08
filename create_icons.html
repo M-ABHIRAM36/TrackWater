@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate App Icons</title>
+</head>
+<body>
+    <h2>Icon Generator for Hydration App</h2>
+    <canvas id="canvas" style="border: 1px solid #ccc;"></canvas>
+    <br><br>
+    <button onclick="generateIcons()">Generate All Icons</button>
+    <div id="downloads"></div>
+
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        
+        function drawWaterDroplet(ctx, size) {
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const scale = size / 100;
+            
+            // Create gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, size);
+            gradient.addColorStop(0, '#38bdf8');
+            gradient.addColorStop(1, '#0ea5e9');
+            
+            // Draw droplet shape
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY - 30 * scale);
+            ctx.quadraticCurveTo(centerX - 20 * scale, centerY - 10 * scale, centerX - 20 * scale, centerY + 10 * scale);
+            ctx.quadraticCurveTo(centerX - 20 * scale, centerY + 30 * scale, centerX, centerY + 30 * scale);
+            ctx.quadraticCurveTo(centerX + 20 * scale, centerY + 30 * scale, centerX + 20 * scale, centerY + 10 * scale);
+            ctx.quadraticCurveTo(centerX + 20 * scale, centerY - 10 * scale, centerX, centerY - 30 * scale);
+            ctx.fill();
+            
+            // Add highlight
+            ctx.fillStyle = '#7dd3fc';
+            ctx.beginPath();
+            ctx.arc(centerX - 8 * scale, centerY - 8 * scale, 4 * scale, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+        
+        function generateIcon(size) {
+            const canvas = document.getElementById('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, size, size);
+            
+            // Draw background (optional)
+            ctx.fillStyle = '#f0f9ff';
+            ctx.fillRect(0, 0, size, size);
+            
+            drawWaterDroplet(ctx, size);
+            
+            return canvas.toDataURL('image/png');
+        }
+        
+        function downloadImage(dataUrl, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = dataUrl;
+            link.click();
+        }
+        
+        function generateIcons() {
+            const downloads = document.getElementById('downloads');
+            downloads.innerHTML = '<h3>Right-click and "Save As" each image:</h3>';
+            
+            sizes.forEach(size => {
+                const dataUrl = generateIcon(size);
+                const img = document.createElement('img');
+                img.src = dataUrl;
+                img.style.width = '64px';
+                img.style.height = '64px';
+                img.style.margin = '5px';
+                img.style.border = '1px solid #ccc';
+                img.title = `icon-${size}x${size}.png`;
+                
+                const label = document.createElement('div');
+                label.textContent = `icon-${size}x${size}.png`;
+                label.style.fontSize = '12px';
+                label.style.textAlign = 'center';
+                
+                const container = document.createElement('div');
+                container.style.display = 'inline-block';
+                container.style.margin = '10px';
+                container.style.textAlign = 'center';
+                
+                const downloadBtn = document.createElement('button');
+                downloadBtn.textContent = 'Download';
+                downloadBtn.onclick = () => downloadImage(dataUrl, `icon-${size}x${size}.png`);
+                
+                container.appendChild(img);
+                container.appendChild(label);
+                container.appendChild(downloadBtn);
+                downloads.appendChild(container);
+            });
+            
+            // Generate badge
+            const badgeDataUrl = generateIcon(72);
+            const badgeContainer = document.createElement('div');
+            badgeContainer.style.display = 'inline-block';
+            badgeContainer.style.margin = '10px';
+            badgeContainer.style.textAlign = 'center';
+            
+            const badgeImg = document.createElement('img');
+            badgeImg.src = badgeDataUrl;
+            badgeImg.style.width = '64px';
+            badgeImg.style.height = '64px';
+            badgeImg.style.margin = '5px';
+            badgeImg.style.border = '1px solid #ccc';
+            
+            const badgeLabel = document.createElement('div');
+            badgeLabel.textContent = 'badge-72x72.png';
+            badgeLabel.style.fontSize = '12px';
+            
+            const badgeBtn = document.createElement('button');
+            badgeBtn.textContent = 'Download Badge';
+            badgeBtn.onclick = () => downloadImage(badgeDataUrl, 'badge-72x72.png');
+            
+            badgeContainer.appendChild(badgeImg);
+            badgeContainer.appendChild(badgeLabel);
+            badgeContainer.appendChild(badgeBtn);
+            downloads.appendChild(badgeContainer);
+        }
+        
+        // Generate preview on load
+        window.onload = () => generateIcon(192);
+    </script>
+    
+    <div style="margin-top: 20px; padding: 20px; background: #f0f9ff; border-radius: 8px;">
+        <h3>Instructions:</h3>
+        <ol>
+            <li>Click "Generate All Icons" button</li>
+            <li>Right-click each icon image and select "Save image as..."</li>
+            <li>Save them in the <code>frontend/public/</code> directory</li>
+            <li>Make sure to use the exact filenames shown (e.g., icon-192x192.png)</li>
+        </ol>
+        <p><strong>Note:</strong> You need all these icon files for the PWA to work properly. They're used for the app icon, notifications, and when users install the app on their device.</p>
+    </div>
+</body>
+</html>

@@ -5,23 +5,39 @@ const webpush = require('web-push');
  * Handles VAPID configuration and notification sending
  */
 
-// Configure VAPID keys (these will be set from environment variables)
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
-const VAPID_EMAIL = process.env.VAPID_EMAIL || 'mailto:your-email@example.com';
+// VAPID configuration function (lazy-loaded to ensure env vars are available)
+let vapidConfigured = false;
 
-// Set VAPID details if keys are available
-if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    VAPID_EMAIL,
-    VAPID_PUBLIC_KEY,
-    VAPID_PRIVATE_KEY
-  );
-  console.log('✅ VAPID keys configured for web push');
-} else {
-  console.warn('⚠️ VAPID keys not configured. Push notifications will not work.');
-  console.warn('Run "npm run generate-vapid" to generate VAPID keys');
-}
+const configureVapid = () => {
+  if (vapidConfigured) return;
+  
+  const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+  const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+  const VAPID_EMAIL = process.env.VAPID_EMAIL || 'mailto:your-email@example.com';
+
+  if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+      VAPID_EMAIL,
+      VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY
+    );
+    vapidConfigured = true;
+    console.log('✅ VAPID keys configured for web push');
+  } else {
+    console.warn('⚠️ VAPID keys not configured. Push notifications will not work.');
+    console.warn('Run "npm run generate-vapid" to generate VAPID keys');
+  }
+};
+
+// Get VAPID keys (lazy-loaded)
+const getVapidKeys = () => {
+  configureVapid();
+  return {
+    VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
+    VAPID_EMAIL: process.env.VAPID_EMAIL || 'mailto:your-email@example.com'
+  };
+};
 
 /**
  * Send push notification to a single subscription
@@ -32,6 +48,9 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
  */
 const sendNotification = async (subscription, payload, options = {}) => {
   try {
+    configureVapid();
+    const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY } = getVapidKeys();
+    
     if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
       throw new Error('VAPID keys not configured');
     }
@@ -194,6 +213,9 @@ const validateSubscription = (subscription) => {
  * @returns {string} - VAPID public key
  */
 const getVapidPublicKey = () => {
+  configureVapid();
+  const { VAPID_PUBLIC_KEY } = getVapidKeys();
+  
   if (!VAPID_PUBLIC_KEY) {
     throw new Error('VAPID public key not configured');
   }
@@ -205,6 +227,7 @@ const getVapidPublicKey = () => {
  * @returns {boolean} - Whether web push is configured
  */
 const isWebPushConfigured = () => {
+  const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY } = getVapidKeys();
   return !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
 };
 

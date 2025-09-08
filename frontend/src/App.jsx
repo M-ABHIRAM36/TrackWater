@@ -4,7 +4,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import AudioAlert from './components/AudioAlert'
-import { api } from './api/api'
+import apiMethods, { api } from './api/api'
 
 // Auth Context
 const AuthContext = createContext(null)
@@ -29,14 +29,14 @@ const AuthProvider = ({ children }) => {
       if (storedToken) {
         try {
           // Verify token and get user data
-          api.setToken(storedToken)
-          const response = await api.get('/auth/me')
+          apiMethods.setToken(storedToken)
+          const response = await apiMethods.get('/auth/me')
           setUser(response.data.user)
           setToken(storedToken)
         } catch (error) {
           console.error('Token verification failed:', error)
-          localStorage.removeItem('token')
-          api.setToken(null)
+        localStorage.removeItem('token')
+        apiMethods.setToken(null)
           setToken(null)
         }
       }
@@ -48,13 +48,13 @@ const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await api.post('/auth/login', { email, password })
+      const response = await apiMethods.post('/auth/login', { email, password })
       const { user: userData, token: userToken } = response.data
       
       setUser(userData)
       setToken(userToken)
       localStorage.setItem('token', userToken)
-      api.setToken(userToken)
+      apiMethods.setToken(userToken)
       
       return { success: true, user: userData }
     } catch (error) {
@@ -66,13 +66,13 @@ const AuthProvider = ({ children }) => {
 
   const signup = async (email, password, name) => {
     try {
-      const response = await api.post('/auth/signup', { email, password, name })
+      const response = await apiMethods.post('/auth/signup', { email, password, name })
       const { user: userData, token: userToken } = response.data
       
       setUser(userData)
       setToken(userToken)
       localStorage.setItem('token', userToken)
-      api.setToken(userToken)
+      apiMethods.setToken(userToken)
       
       return { success: true, user: userData }
     } catch (error) {
@@ -86,12 +86,12 @@ const AuthProvider = ({ children }) => {
     setUser(null)
     setToken(null)
     localStorage.removeItem('token')
-    api.setToken(null)
+    apiMethods.setToken(null)
   }
 
   const updateUser = async (updates) => {
     try {
-      const response = await api.put('/auth/profile', updates)
+      const response = await apiMethods.put('/auth/profile', updates)
       setUser(response.data.user)
       return { success: true, user: response.data.user }
     } catch (error) {
