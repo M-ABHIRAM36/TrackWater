@@ -1,0 +1,19 @@
+# Node modules
+/frontend/node_modules/
+/backend/node_modules/
+
+# Build / distribution files
+/frontend/build/
+/backend/dist/
+
+# Environment variables
+/frontend/.env
+/backend/.env
+/.env
+/.env.local
+
+# Logs
+*.log
+
+# System files
+.DS_Store
