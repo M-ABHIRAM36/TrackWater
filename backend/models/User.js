@@ -43,6 +43,11 @@ const userSchema = new mongoose.Schema({
     min: [0, 'End hour must be between 0-23'],
     max: [23, 'End hour must be between 0-23']
   },
+  notificationFrequency: {
+    type: String,
+    enum: ['30min', '1hr', '2hr'],
+    default: '1hr'
+  },
   dailyGoal: {
     type: Number,
     default: 2000, // Default daily goal in ml (2 liters)
@@ -118,26 +123,51 @@ userSchema.methods.getSafeData = function() {
 /**
  * Method to check if user should receive notifications at a specific hour
  * @param {number} currentHour - Current hour (0-23)
+ * @param {number} currentMinute - Current minute (0-59) - optional for testing
  * @returns {boolean} - Whether user should receive notification
  */
-userSchema.methods.shouldReceiveNotificationAtHour = function(currentHour) {
+userSchema.methods.shouldReceiveNotificationAtHour = function(currentHour, currentMinute = 0) {
   if (!this.notificationsEnabled) {
     return false;
   }
   
   const startHour = this.notificationStartHour;
   const endHour = this.notificationEndHour;
+  const frequency = this.notificationFrequency || '1hr';
+  
+  // First check if we're within the notification time window
+  let withinTimeWindow = false;
   
   // Handle cases where end hour is next day (e.g., 22 to 2 means 10 PM to 2 AM)
   if (endHour === 0) {
     // Special case: end at midnight (0 = 24)
-    return currentHour >= startHour || currentHour === 0;
+    withinTimeWindow = currentHour >= startHour || currentHour === 0;
   } else if (startHour <= endHour) {
     // Same day range (e.g., 9 AM to 5 PM)
-    return currentHour >= startHour && currentHour <= endHour;
+    withinTimeWindow = currentHour >= startHour && currentHour <= endHour;
   } else {
     // Cross-day range (e.g., 10 PM to 2 AM next day)
-    return currentHour >= startHour || currentHour <= endHour;
+    withinTimeWindow = currentHour >= startHour || currentHour <= endHour;
+  }
+  
+  if (!withinTimeWindow) {
+    return false;
+  }
+  
+  // Apply frequency rules
+  switch (frequency) {
+    case '30min':
+      // Every 30 minutes: at :00 and :30
+      return currentMinute === 0 || currentMinute === 30;
+    
+    case '2hr':
+      // Every 2 hours: only at even hours
+      return currentHour % 2 === 0 && currentMinute === 0;
+    
+    case '1hr':
+    default:
+      // Every hour: only at :00 minutes
+      return currentMinute === 0;
   }
 };
 

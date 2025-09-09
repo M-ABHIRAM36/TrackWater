@@ -12,14 +12,21 @@ const {
  */
 
 let cronJob;
+let testCronJob;
 
 /**
  * Send hydration reminders to all active subscriptions
+ * @param {boolean} isTestMode - Whether this is a test run (1-minute intervals)
  */
-const sendHydrationReminders = async () => {
+const sendHydrationReminders = async (isTestMode = false) => {
   try {
-    const currentHour = new Date().getUTCHours();
-    console.log(`⏰ Starting hourly hydration reminder for hour ${currentHour}:00 UTC...`);
+    const now = new Date();
+    const currentHour = now.getUTCHours();
+    const currentMinute = now.getUTCMinutes();
+    
+    const modeText = isTestMode ? 'TEST' : 'PRODUCTION';
+    const timeText = isTestMode ? `${currentHour}:${currentMinute.toString().padStart(2, '0')}` : `${currentHour}:00`;
+    console.log(`⏰ [${modeText}] Starting hydration reminder for time ${timeText} UTC...`);
 
     // Get all active subscriptions with users who have notifications enabled
     const subscriptions = await Subscription.getAllActiveSubscriptions();
@@ -29,12 +36,25 @@ const sendHydrationReminders = async () => {
       return;
     }
 
-    // Filter subscriptions for users who should receive notifications at this hour
+    // Filter subscriptions for users who should receive notifications at this time
     const enabledSubscriptions = subscriptions.filter(sub => {
-      if (!sub.userId) return false;
+      if (!sub.userId) {
+        console.log('⚠️ Subscription without userId found');
+        return false;
+      }
       
-      // Use the user model method to check timing
-      return sub.userId.shouldReceiveNotificationAtHour(currentHour);
+      // For test mode, pass current minute; for production, pass 0 (top of hour)
+      const checkMinute = isTestMode ? currentMinute : 0;
+      const shouldReceive = sub.userId.shouldReceiveNotificationAtHour(currentHour, checkMinute);
+      
+      // Enhanced logging for test mode
+      if (isTestMode && process.env.NODE_ENV === 'development') {
+        console.log(`🧪 User ${sub.userId._id}: frequency=${sub.userId.notificationFrequency}, window=${sub.userId.notificationStartHour}-${sub.userId.notificationEndHour}, time=${currentHour}:${checkMinute}, shouldReceive=${shouldReceive}`);
+      } else if (!shouldReceive && process.env.NODE_ENV === 'development') {
+        console.log(`🔍 User ${sub.userId._id}: outside notification window (${sub.userId.notificationStartHour}-${sub.userId.notificationEndHour}), current hour: ${currentHour}`);
+      }
+      
+      return shouldReceive;
     });
 
     if (enabledSubscriptions.length === 0) {
@@ -45,14 +65,20 @@ const sendHydrationReminders = async () => {
     console.log(`💧 Sending hydration reminders to ${enabledSubscriptions.length} subscriptions...`);
 
     // Create notification payload
+    const notificationTitle = isTestMode ? 'Test Water Reminder! 🧪💧' : 'Drink Water! 💧';
+    const notificationBody = isTestMode ? 'Test notification - Stay Hydrated!' : 'Stay Hydrated. Time to drink some water!';
+    
     const notification = createHydrationNotification({
-      title: 'Drink Water! 💧',
-      body: 'Stay Hydrated. Time to drink some water!',
+      title: notificationTitle,
+      body: notificationBody,
+      tag: isTestMode ? 'test-hydration-reminder' : 'hydration-reminder',
       data: {
         url: '/',
         action: 'hydration-reminder',
         timestamp: Date.now(),
-        hour: currentHour
+        hour: currentHour,
+        minute: currentMinute,
+        isTest: isTestMode
       }
     });
 
@@ -170,28 +196,41 @@ const sendTestNotification = async () => {
 
 /**
  * Start the cron job scheduler
+ * @param {boolean} testMode - Whether to run in test mode (1-minute intervals)
  */
-const start = () => {
-  if (cronJob) {
+const start = (testMode = false) => {
+  const isTestMode = testMode || process.env.NOTIFICATION_TEST_MODE === 'true';
+  
+  if (cronJob || testCronJob) {
     console.log('⏰ Cron job already running');
     return;
   }
 
-  // Schedule hydration reminders every hour (we'll filter by user preferences)
-  // Cron pattern: "0 * * * *" = At minute 0 of every hour
-  cronJob = cron.schedule('0 * * * *', sendHydrationReminders, {
-    scheduled: true,
-    timezone: 'UTC' // Use UTC, users can set their timezone in profile
-  });
+  if (isTestMode) {
+    // TEST MODE: Run every minute for testing
+    console.log('🧪 Starting in TEST MODE - notifications every minute');
+    testCronJob = cron.schedule('* * * * *', () => sendHydrationReminders(true), {
+      scheduled: true,
+      timezone: 'UTC'
+    });
+    console.log('🧪 Test cron job started: Every minute');
+  } else {
+    // PRODUCTION MODE: Run every hour
+    console.log('🎆 Starting in PRODUCTION MODE - notifications every hour');
+    cronJob = cron.schedule('0 * * * *', () => sendHydrationReminders(false), {
+      scheduled: true,
+      timezone: 'UTC' // Use UTC, users can set their timezone in profile
+    });
+    console.log('⏰ Production cron job started: Every hour');
+  }
 
-  // Schedule daily cleanup at 3 AM UTC
+  // Schedule daily cleanup at 3 AM UTC (both modes)
   const cleanupJob = cron.schedule('0 3 * * *', cleanupSubscriptions, {
     scheduled: true,
     timezone: 'UTC'
   });
 
-  console.log('⏰ Hydration reminder cron jobs started');
-  console.log('📅 Schedule: Every hour (filtered by user preferences)');
+  console.log('📅 Schedule: ' + (isTestMode ? 'Every minute (TEST)' : 'Every hour (filtered by user preferences)'));
   console.log('🧹 Cleanup: Daily at 3 AM UTC');
 };
 
@@ -200,9 +239,23 @@ const start = () => {
  */
 const stop = () => {
   if (cronJob) {
-    cronJob.destroy();
-    cronJob = null;
-    console.log('⏰ Cron job stopped');
+    try {
+      cronJob.destroy();
+      cronJob = null;
+      console.log('⏰ Production cron job stopped');
+    } catch (error) {
+      console.log('⚠️ Error stopping production cron job:', error.message);
+    }
+  }
+  
+  if (testCronJob) {
+    try {
+      testCronJob.destroy();
+      testCronJob = null;
+      console.log('🧪 Test cron job stopped');
+    } catch (error) {
+      console.log('⚠️ Error stopping test cron job:', error.message);
+    }
   }
 };
 
@@ -211,8 +264,14 @@ const stop = () => {
  */
 const getStatus = () => {
   return {
-    isRunning: cronJob ? cronJob.getStatus() === 'scheduled' : false,
-    nextRun: cronJob ? cronJob.nextDate() : null,
+    production: {
+      isRunning: cronJob ? cronJob.getStatus() === 'scheduled' : false,
+      nextRun: cronJob ? cronJob.nextDate() : null
+    },
+    test: {
+      isRunning: testCronJob ? testCronJob.getStatus() === 'scheduled' : false,
+      nextRun: testCronJob ? testCronJob.nextDate() : null
+    },
     timezone: 'UTC'
   };
 };
@@ -220,14 +279,37 @@ const getStatus = () => {
 /**
  * Manual trigger for testing (development only)
  */
-const triggerManual = async () => {
+const triggerManual = async (testMode = false) => {
   if (process.env.NODE_ENV === 'production') {
     console.warn('⚠️ Manual trigger disabled in production');
     return;
   }
   
   console.log('🔧 Manual trigger activated...');
-  await sendHydrationReminders();
+  await sendHydrationReminders(testMode);
+};
+
+/**
+ * Start test mode (1-minute intervals) for development/testing
+ */
+const startTestMode = () => {
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('⚠️ Test mode disabled in production');
+    return;
+  }
+  
+  stop(); // Stop any existing jobs
+  start(true); // Start in test mode
+  console.log('🧪 Test mode activated - notifications every minute!');
+};
+
+/**
+ * Start production mode (hourly intervals)
+ */
+const startProductionMode = () => {
+  stop(); // Stop any existing jobs
+  start(false); // Start in production mode
+  console.log('🎆 Production mode activated - notifications every hour!');
 };
 
 module.exports = {
@@ -236,5 +318,7 @@ module.exports = {
   getStatus,
   triggerManual,
   sendTestNotification,
-  cleanupSubscriptions
+  cleanupSubscriptions,
+  startTestMode,
+  startProductionMode
 };

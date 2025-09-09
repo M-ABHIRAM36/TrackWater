@@ -19,6 +19,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust proxy for Render/Heroku deployment
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Security middleware
 app.use(helmet());
 
@@ -140,9 +145,16 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   
-  // Start notification cron job
-  notificationCron.start();
-  console.log('⏰ Notification cron job started');
+  // Start notification cron job (check for test mode)
+  const testMode = process.env.NOTIFICATION_TEST_MODE === 'true';
+  notificationCron.start(testMode);
+  
+  if (testMode) {
+    console.log('🧪 Notification cron job started in TEST MODE (1-minute intervals)');
+    console.log('⚠️ Set NOTIFICATION_TEST_MODE=false or remove it for production');
+  } else {
+    console.log('⏰ Notification cron job started in PRODUCTION MODE (1-hour intervals)');
+  }
 });
 
 // Graceful shutdown

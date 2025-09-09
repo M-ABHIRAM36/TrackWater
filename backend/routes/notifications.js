@@ -61,27 +61,31 @@ router.post('/subscribe', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check if subscription already exists
-    const existingSubscription = await Subscription.findByEndpoint(endpoint);
+    // Check if subscription already exists for this user
+    const existingUserSubscription = await Subscription.findOne({
+      userId: userId,
+      endpoint: endpoint
+    });
     
-    if (existingSubscription) {
-      // Update existing subscription if it belongs to the same user
-      if (existingSubscription.userId.toString() === userId) {
-        existingSubscription.keys = keys;
-        existingSubscription.userAgent = userAgent;
-        existingSubscription.isActive = true;
-        existingSubscription.failedAttempts = 0;
-        await existingSubscription.save();
+    if (existingUserSubscription) {
+      // Update existing subscription for same user
+      existingUserSubscription.keys = keys;
+      existingUserSubscription.userAgent = userAgent;
+      existingUserSubscription.isActive = true;
+      existingUserSubscription.failedAttempts = 0;
+      await existingUserSubscription.save();
 
-        return res.status(200).json({
-          message: 'Subscription updated successfully'
-        });
-      } else {
-        return res.status(409).json({
-          error: 'Conflict',
-          message: 'Subscription already exists for different user'
-        });
-      }
+      return res.status(200).json({
+        message: 'Subscription updated successfully'
+      });
+    }
+    
+    // Check if endpoint exists for different user (less common case)
+    const existingEndpoint = await Subscription.findByEndpoint(endpoint);
+    if (existingEndpoint && existingEndpoint.userId.toString() !== userId) {
+      // Remove old subscription and create new one (browser switched users)
+      console.log(`🔄 Replacing subscription for endpoint: ${endpoint}`);
+      await Subscription.findByIdAndDelete(existingEndpoint._id);
     }
 
     // Create new subscription

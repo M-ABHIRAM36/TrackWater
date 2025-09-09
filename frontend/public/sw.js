@@ -107,7 +107,8 @@ self.addEventListener('fetch', (event) => {
 
 // Push event - handle incoming push notifications
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push event received')
+  console.log('[SW] Push event received!')
+  console.log('[SW] Push event data:', event.data ? 'Present' : 'None')
   
   let notificationData = {
     title: 'Drink Water! 💧',
@@ -137,15 +138,31 @@ self.addEventListener('push', (event) => {
   }
 
   // Parse notification data if provided
+  let isTestNotification = false;
   if (event.data) {
     try {
       const pushData = event.data.json()
       notificationData = { ...notificationData, ...pushData }
+      
+      // Check if this is a test notification
+      isTestNotification = pushData.isTest || (pushData.tag && pushData.tag.includes('test')) || 
+                          (pushData.data && pushData.data.isTest) || 
+                          (pushData.title && pushData.title.includes('Test'));
+                          
+      if (isTestNotification) {
+        console.log('[SW] 🧪 TEST NOTIFICATION DETECTED IN PUSH EVENT!')
+        console.log('[SW] Test notification data:', pushData)
+      }
     } catch (error) {
       console.warn('[SW] Failed to parse push data:', error)
     }
   }
 
+  // Log notification details before showing
+  console.log('[SW] Showing notification with title:', notificationData.title)
+  console.log('[SW] Notification tag:', notificationData.tag)
+  console.log('[SW] Notification actions:', notificationData.actions)
+  
   const notificationPromise = self.registration.showNotification(
     notificationData.title,
     {
@@ -160,6 +177,9 @@ self.addEventListener('push', (event) => {
     }
   ).then(() => {
     console.log('[SW] Notification displayed successfully')
+    if (isTestNotification) {
+      console.log('[SW] 🧪 Test notification displayed! Click it to trigger the water alert sound.')
+    }
     // Optional: Play sound immediately when notification appears
     // Uncomment the next line if you want sound on notification appearance
     // return playNotificationSound()
@@ -173,16 +193,44 @@ self.addEventListener('notificationclick', (event) => {
   console.log('[SW] ✅ NOTIFICATION CLICKED! Action:', event.action || 'default')
   console.log('[SW] Notification data:', event.notification.data)
   console.log('[SW] Notification title:', event.notification.title)
+  console.log('[SW] Full notification object:', {
+    title: event.notification.title,
+    body: event.notification.body,
+    tag: event.notification.tag,
+    data: event.notification.data,
+    actions: event.notification.actions
+  })
   
   event.notification.close()
 
   const action = event.action
   const notificationData = event.notification.data || {}
+  const isTestNotification = notificationData.isTest || event.notification.tag.includes('test')
+
+  // Log test notification details
+  if (isTestNotification) {
+    console.log('[SW] 🧪 TEST NOTIFICATION DETECTED!')
+    console.log('[SW] Test notification tag:', event.notification.tag)
+    console.log('[SW] Test notification action:', action || 'default click')
+  }
 
   // ALWAYS play water alert sound first for any notification click
   event.waitUntil(
     playNotificationSound().then(() => {
-      // Then handle specific actions
+      // Show test notification feedback if it's a test
+      if (isTestNotification) {
+        console.log('[SW] 🎉 Test notification click handling completed!')
+        return self.registration.showNotification('Test Successful! ✅', {
+          body: 'Water alert sound triggered! Audio system working properly.',
+          icon: '/icons/icon-192x192.png',
+          tag: 'test-success',
+          requireInteraction: false,
+          silent: true,
+          data: { isTestResult: true }
+        }).then(() => openAppAndFocusTab('/?test=notification-success'))
+      }
+      
+      // Then handle specific actions for regular notifications
       if (action === 'log-water') {
         // Log water automatically and show success
         return logWaterAutomatically().then(() => {
@@ -408,41 +456,86 @@ const testNotificationClick = async () => {
   }
 }
 
-// Create a test notification that we can click
+// Create a comprehensive test notification that matches real notification structure
 const createTestNotification = async () => {
   try {
-    console.log('[SW] Creating test notification...')
+    console.log('[SW] Creating comprehensive test notification...')
     
-    await self.registration.showNotification('Test Water Alert! 💧', {
-      body: 'Click me to test the water alert sound!',
+    // Use exact same structure as real hydration notifications
+    const testNotification = {
+      title: 'Test Water Reminder! 🧪💧',
+      body: 'Click me to test the water alert sound and notification system!',
       icon: '/icons/icon-192x192.png',
       badge: '/icons/badge-72x72.png',
-      tag: 'test-water-alert',
+      tag: 'test-hydration-reminder',
       requireInteraction: true, // Forces user to interact
       silent: false,
       data: {
         url: '/',
-        action: 'test-water-alert',
-        timestamp: Date.now()
+        action: 'hydration-reminder', // Same as real notifications
+        timestamp: Date.now(),
+        isTest: true // Flag to identify this as a test
       },
       actions: [
         {
-          action: 'test-sound',
-          title: '🔊 Test Sound',
-          icon: '/icons/icon-192x192.png'
+          action: 'log-water',
+          title: '✅ Drink Water',
+          icon: '/icon-check.png'
+        },
+        {
+          action: 'snooze',
+          title: '⏰ Remind Later',
+          icon: '/icon-snooze.png'
         }
       ]
+    }
+    
+    await self.registration.showNotification(testNotification.title, {
+      body: testNotification.body,
+      icon: testNotification.icon,
+      badge: testNotification.badge,
+      tag: testNotification.tag,
+      requireInteraction: testNotification.requireInteraction,
+      silent: testNotification.silent,
+      data: testNotification.data,
+      actions: testNotification.actions
     })
     
-    console.log('[SW] ✅ Test notification created! Click it to test sound.')
+    console.log('[SW] ✅ Comprehensive test notification created!')
+    console.log('[SW] 👆 Click the notification to test the water alert system!')
+    console.log('[SW] Expected behavior: sound plays + success notification shows')
   } catch (error) {
     console.error('[SW] Failed to create test notification:', error)
+  }
+}
+
+// Create a simple test notification for quick testing
+const createSimpleTestNotification = async () => {
+  try {
+    console.log('[SW] Creating simple test notification...')
+    
+    await self.registration.showNotification('Simple Test 🔔', {
+      body: 'Click to test notification click handler',
+      icon: '/icons/icon-192x192.png',
+      tag: 'simple-test',
+      requireInteraction: true,
+      data: {
+        action: 'test-click',
+        timestamp: Date.now(),
+        isTest: true
+      }
+    })
+    
+    console.log('[SW] ✅ Simple test notification created!')
+  } catch (error) {
+    console.error('[SW] Failed to create simple test notification:', error)
   }
 }
 
 // Expose test functions for debugging
 self.testNotificationClick = testNotificationClick
 self.createTestNotification = createTestNotification
+self.createSimpleTest = createSimpleTestNotification
 
 // Error event
 self.addEventListener('error', (event) => {
@@ -457,4 +550,5 @@ self.addEventListener('unhandledrejection', (event) => {
 
 console.log('[SW] Service worker loaded successfully')
 console.log('[SW] 🧪 Test notification click: self.testNotificationClick()')
-console.log('[SW] 🔔 Create test notification: self.createTestNotification()')
+console.log('[SW] 🔔 Create comprehensive test: self.createTestNotification()')
+console.log('[SW] 📦 Create simple test: self.createSimpleTest()')

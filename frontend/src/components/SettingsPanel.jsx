@@ -19,6 +19,7 @@ const SettingsPanel = ({ user }) => {
     defaultWaterAmount: user?.defaultWaterAmount || 250,
     notificationStartHour: user?.notificationStartHour || 5,
     notificationEndHour: user?.notificationEndHour || 0,
+    notificationFrequency: user?.notificationFrequency || '1hr',
     notificationsEnabled: user?.notificationsEnabled || true,
     name: user?.name || '',
     email: user?.email || ''
@@ -35,6 +36,7 @@ const SettingsPanel = ({ user }) => {
         defaultWaterAmount: user.defaultWaterAmount || 250,
         notificationStartHour: user.notificationStartHour || 5,
         notificationEndHour: user.notificationEndHour || 0,
+        notificationFrequency: user.notificationFrequency || '1hr',
         notificationsEnabled: user.notificationsEnabled || true,
         name: user.name || '',
         email: user.email || ''
@@ -100,6 +102,7 @@ const SettingsPanel = ({ user }) => {
         defaultWaterAmount: settings.defaultWaterAmount,
         notificationStartHour: settings.notificationStartHour,
         notificationEndHour: settings.notificationEndHour,
+        notificationFrequency: settings.notificationFrequency,
         notificationsEnabled: settings.notificationsEnabled
       })
 
@@ -121,13 +124,27 @@ const SettingsPanel = ({ user }) => {
   const getTimingDescription = () => {
     const start = settings.notificationStartHour
     const end = settings.notificationEndHour
+    const frequency = settings.notificationFrequency
+    
+    let frequencyText
+    switch (frequency) {
+      case '30min':
+        frequencyText = 'reminders every 30 minutes'
+        break
+      case '2hr':
+        frequencyText = 'reminders every 2 hours'
+        break
+      case '1hr':
+      default:
+        frequencyText = 'hourly reminders'
+    }
     
     if (end === 0) {
-      return `You'll receive hourly reminders from ${formatHour(start)} until midnight`
+      return `You'll receive ${frequencyText} from ${formatHour(start)} until midnight`
     } else if (start <= end) {
-      return `You'll receive hourly reminders from ${formatHour(start)} to ${formatHour(end)}`
+      return `You'll receive ${frequencyText} from ${formatHour(start)} to ${formatHour(end)}`
     } else {
-      return `You'll receive hourly reminders from ${formatHour(start)} to ${formatHour(end)} (next day)`
+      return `You'll receive ${frequencyText} from ${formatHour(start)} to ${formatHour(end)} (next day)`
     }
   }
 
@@ -192,6 +209,47 @@ const SettingsPanel = ({ user }) => {
               </select>
               <p className="text-xs text-gray-500 mt-1">When to stop sending reminders</p>
             </div>
+          </div>
+
+          {/* Notification Frequency */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Notification Frequency
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {[
+                { value: '30min', label: '30 minutes', desc: 'More frequent reminders', icon: '⏱️' },
+                { value: '1hr', label: '1 hour', desc: 'Standard reminders', icon: '⏰' },
+                { value: '2hr', label: '2 hours', desc: 'Less frequent reminders', icon: '📅' }
+              ].map(option => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleInputChange('notificationFrequency', option.value)}
+                  className={`p-4 border rounded-lg text-left transition-all ${
+                    settings.notificationFrequency === option.value
+                      ? 'border-water-300 bg-water-50 ring-2 ring-water-200'
+                      : 'border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <span className="text-2xl">{option.icon}</span>
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900">{option.label}</div>
+                      <div className="text-sm text-gray-600">{option.desc}</div>
+                    </div>
+                    {settings.notificationFrequency === option.value && (
+                      <svg className="w-5 h-5 text-water-600" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                      </svg>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              💡 Choose how often you want to receive hydration reminders within your selected time window
+            </p>
           </div>
 
           {/* Timing Description */}

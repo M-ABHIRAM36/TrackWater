@@ -168,14 +168,18 @@ const createHydrationNotification = (options = {}) => {
  */
 const createTestNotification = () => {
   return createHydrationNotification({
-    title: 'Test Notification 🧪',
-    body: 'This is a test notification from your Hydration Reminder app!',
-    tag: 'test-notification',
+    title: 'Test Water Reminder 🧪💧',
+    body: 'Click me to test the water alert sound and auto-logging!',
+    tag: 'test-hydration-reminder',
+    requireInteraction: true, // Force user interaction
+    silent: false,
     data: {
       url: '/',
-      action: 'test',
-      timestamp: Date.now()
+      action: 'hydration-reminder', // Use same action as regular notifications
+      timestamp: Date.now(),
+      isTest: true // Flag to identify test notifications
     }
+    // Keep the same actions as regular hydration notifications for consistency
   });
 };
 

@@ -191,7 +191,16 @@ router.get('/me', authenticateToken, async (req, res) => {
  */
 router.put('/profile', authenticateToken, async (req, res) => {
   try {
-    const { name, dailyGoal, notificationsEnabled, timezone } = req.body;
+    const { 
+      name, 
+      dailyGoal, 
+      defaultWaterAmount,
+      notificationsEnabled, 
+      notificationStartHour,
+      notificationEndHour,
+      notificationFrequency,
+      timezone 
+    } = req.body;
     
     const user = await User.findById(req.user.userId);
     if (!user) {
@@ -203,6 +212,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
 
     // Update fields if provided
     if (name !== undefined) user.name = name.trim();
+    
     if (dailyGoal !== undefined) {
       if (dailyGoal < 500 || dailyGoal > 5000) {
         return res.status(400).json({
@@ -212,6 +222,48 @@ router.put('/profile', authenticateToken, async (req, res) => {
       }
       user.dailyGoal = dailyGoal;
     }
+    
+    if (defaultWaterAmount !== undefined) {
+      if (defaultWaterAmount < 50 || defaultWaterAmount > 1000) {
+        return res.status(400).json({
+          error: 'Validation Error',
+          message: 'Default water amount must be between 50ml and 1000ml'
+        });
+      }
+      user.defaultWaterAmount = defaultWaterAmount;
+    }
+    
+    if (notificationStartHour !== undefined) {
+      if (notificationStartHour < 0 || notificationStartHour > 23) {
+        return res.status(400).json({
+          error: 'Validation Error',
+          message: 'Notification start hour must be between 0 and 23'
+        });
+      }
+      user.notificationStartHour = notificationStartHour;
+    }
+    
+    if (notificationEndHour !== undefined) {
+      if (notificationEndHour < 0 || notificationEndHour > 23) {
+        return res.status(400).json({
+          error: 'Validation Error',
+          message: 'Notification end hour must be between 0 and 23'
+        });
+      }
+      user.notificationEndHour = notificationEndHour;
+    }
+    
+    if (notificationFrequency !== undefined) {
+      const validFrequencies = ['30min', '1hr', '2hr'];
+      if (!validFrequencies.includes(notificationFrequency)) {
+        return res.status(400).json({
+          error: 'Validation Error',
+          message: 'Notification frequency must be 30min, 1hr, or 2hr'
+        });
+      }
+      user.notificationFrequency = notificationFrequency;
+    }
+    
     if (notificationsEnabled !== undefined) user.notificationsEnabled = notificationsEnabled;
     if (timezone !== undefined) user.timezone = timezone;
 
