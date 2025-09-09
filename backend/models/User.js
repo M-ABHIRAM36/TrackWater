@@ -124,9 +124,10 @@ userSchema.methods.getSafeData = function() {
  * Method to check if user should receive notifications at a specific hour
  * @param {number} currentHour - Current hour (0-23)
  * @param {number} currentMinute - Current minute (0-59) - optional for testing
+ * @param {boolean} isTestMode - Whether running in test mode (1-minute cron)
  * @returns {boolean} - Whether user should receive notification
  */
-userSchema.methods.shouldReceiveNotificationAtHour = function(currentHour, currentMinute = 0) {
+userSchema.methods.shouldReceiveNotificationAtHour = function(currentHour, currentMinute = 0, isTestMode = false) {
   if (!this.notificationsEnabled) {
     return false;
   }
@@ -154,24 +155,33 @@ userSchema.methods.shouldReceiveNotificationAtHour = function(currentHour, curre
     return false;
   }
   
-  // Apply frequency rules
-  switch (frequency) {
-    case '1min':
-      // Every minute (for testing only)
-      return true;
-    
-    case '30min':
-      // Every 30 minutes: at :00 and :30
-      return currentMinute === 0 || currentMinute === 30;
-    
-    case '2hr':
-      // Every 2 hours: only at even hours
-      return currentHour % 2 === 0 && currentMinute === 0;
-    
-    case '1hr':
-    default:
-      // Every hour: only at :00 minutes
-      return currentMinute === 0;
+  // Apply frequency rules based on test mode and frequency
+  if (isTestMode) {
+    // In test mode (1-minute cron), only send to users with 1min frequency
+    switch (frequency) {
+      case '1min':
+        return true; // Send every minute
+      case '30min':
+        return currentMinute % 30 === 0; // Every 30 minutes
+      case '2hr':
+        return currentMinute % 120 === 0; // Every 2 hours
+      case '1hr':
+      default:
+        return currentMinute % 60 === 0; // Every hour
+    }
+  } else {
+    // In production mode (1-hour cron), apply normal frequency rules
+    switch (frequency) {
+      case '1min':
+        return currentMinute === 0; // Only at top of hour in production
+      case '30min':
+        return currentMinute === 0 || currentMinute === 30;
+      case '2hr':
+        return currentHour % 2 === 0 && currentMinute === 0;
+      case '1hr':
+      default:
+        return currentMinute === 0;
+    }
   }
 };
 

@@ -1,0 +1,6 @@
+# SPA fallback for React Router
+# All non-file requests should serve index.html
+/*    /index.html   200
+
+# API requests should go to backend
+/api/*  https://trackwater.onrender.com/api/:splat  200

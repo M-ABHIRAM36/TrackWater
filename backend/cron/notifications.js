@@ -45,7 +45,7 @@ const sendHydrationReminders = async (isTestMode = false) => {
       
       // For test mode, pass current minute; for production, pass 0 (top of hour)
       const checkMinute = isTestMode ? currentMinute : 0;
-      const shouldReceive = sub.userId.shouldReceiveNotificationAtHour(currentHour, checkMinute);
+      const shouldReceive = sub.userId.shouldReceiveNotificationAtHour(currentHour, checkMinute, isTestMode);
       
       // Enhanced logging for test mode
       if (isTestMode && process.env.NODE_ENV === 'development') {

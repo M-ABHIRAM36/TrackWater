@@ -89,6 +89,8 @@ subscriptionSchema.statics.getAllActiveSubscriptions = function() {
  * @param {string} errorMessage - Error message to store
  */
 subscriptionSchema.methods.markAsFailed = async function(errorMessage) {
+  // Ensure failedAttempts is a number, default to 0 if NaN
+  this.failedAttempts = isNaN(this.failedAttempts) ? 0 : this.failedAttempts;
   this.failedAttempts += 1;
   this.lastError = errorMessage;
   

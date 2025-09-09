@@ -409,27 +409,37 @@ const logWaterAutomatically = async () => {
     
     // Get stored JWT token from localStorage (we can't access it directly from SW)
     // So we'll send a message to the client to handle the API call
-    const clients = await self.clients.matchAll({ type: 'window' })
+    const clients = await self.clients.matchAll({ 
+      type: 'window',
+      includeUncontrolled: true 
+    })
+    
+    console.log(`[SW] Found ${clients.length} clients to send water log message`)
     
     if (clients.length > 0) {
-      clients[0].postMessage({
-        type: 'LOG_WATER_AUTOMATICALLY',
-        timestamp: Date.now()
+      // Send message to all clients (in case multiple tabs are open)
+      clients.forEach((client, index) => {
+        console.log(`[SW] Sending LOG_WATER_AUTOMATICALLY to client ${index + 1}`)
+        client.postMessage({
+          type: 'LOG_WATER_AUTOMATICALLY',
+          timestamp: Date.now()
+        })
       })
-      console.log('[SW] ✅ Sent auto-log water message to client')
+      console.log('[SW] ✅ Sent auto-log water message to all clients')
     } else {
       console.warn('[SW] ⚠️ No active clients to handle water logging')
+      
+      // Show error notification if no clients available
+      await self.registration.showNotification('Cannot Log Water ❌', {
+        body: 'Please open the app and try again',
+        icon: '/icons/icon-192x192.png',
+        tag: 'water-log-no-client-error',
+        requireInteraction: true,
+        data: { action: 'no-client-error' }
+      })
     }
     
-    // Show success notification
-    await self.registration.showNotification('Water Logged! ✅', {
-      body: 'Great job staying hydrated!',
-      icon: '/icons/icon-192x192.png',
-      tag: 'water-logged-success',
-      requireInteraction: false,
-      silent: true,
-      data: { action: 'success' }
-    })
+    // Don't show success notification here - let the frontend handle it after API call completes
     
   } catch (error) {
     console.error('[SW] Error auto-logging water:', error)
