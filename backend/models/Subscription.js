@@ -80,7 +80,7 @@ subscriptionSchema.statics.getAllActiveSubscriptions = function() {
   return this.find({ 
     isActive: true,
     failedAttempts: { $lt: 5 }
-  }).populate('userId', 'notificationsEnabled')
+  }).populate('userId', 'notificationsEnabled notificationFrequency notificationStartHour notificationEndHour')
     .select('endpoint keys userId');
 };
 
