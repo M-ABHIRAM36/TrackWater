@@ -128,6 +128,9 @@ const SettingsPanel = ({ user }) => {
     
     let frequencyText
     switch (frequency) {
+      case '1min':
+        frequencyText = 'reminders every minute (testing mode)'
+        break
       case '30min':
         frequencyText = 'reminders every 30 minutes'
         break
@@ -216,8 +219,12 @@ const SettingsPanel = ({ user }) => {
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Notification Frequency
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className={`grid grid-cols-1 gap-3 ${settings.email === 'abhi.storage36@gmail.com' ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
               {[
+                // Special 1min option for testing (only for specific email)
+                ...(settings.email === 'abhi.storage36@gmail.com' ? [
+                  { value: '1min', label: '1 minute', desc: '🧪 Testing mode', icon: '⚡' }
+                ] : []),
                 { value: '30min', label: '30 minutes', desc: 'More frequent reminders', icon: '⏱️' },
                 { value: '1hr', label: '1 hour', desc: 'Standard reminders', icon: '⏰' },
                 { value: '2hr', label: '2 hours', desc: 'Less frequent reminders', icon: '📅' }

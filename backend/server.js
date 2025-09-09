@@ -19,9 +19,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Trust proxy for Render/Heroku deployment
-if (process.env.NODE_ENV === 'production') {
+// Trust proxy for deployment platforms (Render, Heroku, etc.)
+// Enable for production or when deployed (even in development mode on cloud)
+if (process.env.NODE_ENV === 'production' || process.env.RENDER || process.env.HEROKU_APP_NAME) {
   app.set('trust proxy', 1);
+  console.log('🔒 Trust proxy enabled for deployment platform');
 }
 
 // Security middleware

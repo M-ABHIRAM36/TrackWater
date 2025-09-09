@@ -1,0 +1,95 @@
+{
+  "_id": "YOUR_USER_ID_HERE",
+  "email": "abhi.storage36@gmail.com",
+  "password": "YOUR_HASHED_PASSWORD_HERE",
+  "name": "Abhi",
+  "notificationsEnabled": true,
+  "notificationStartHour": 7,
+  "notificationEndHour": 8,
+  "notificationFrequency": "1min",
+  "dailyGoal": 2000,
+  "defaultWaterAmount": 250,
+  "timezone": "UTC",
+  "createdAt": "YOUR_CREATED_DATE_HERE",
+  "updatedAt": "2024-01-09T07:50:00.000Z"
+}
+
+IMPORTANT NOTES:
+================
+
+1. REPLACE WITH CURRENT HOUR:
+   - "notificationStartHour": 7  ← Replace 7 with current hour (right now it's 7 UTC)
+   - "notificationEndHour": 8    ← Replace 8 with current hour + 1 (so 8 UTC)
+
+2. KEEP YOUR EXISTING VALUES:
+   - "_id": Keep your actual user ID
+   - "password": Keep your existing hashed password
+   - "createdAt": Keep your original creation date
+   - "name": Use your actual name if different
+
+3. UPDATE FIELDS TO ADD/CHANGE:
+   - "notificationFrequency": "1min"           ← NEW FIELD (enables 1-minute notifications)
+   - "notificationsEnabled": true             ← Ensure notifications are on
+   - "notificationStartHour": 7               ← Current hour (UTC)
+   - "notificationEndHour": 8                 ← Next hour (UTC)
+   - "dailyGoal": 2000                       ← Reasonable daily goal
+   - "defaultWaterAmount": 250               ← Standard amount per notification
+
+4. CURRENT TIME INFO:
+   - Current UTC time: 7:50 (so use hour 7-8 for immediate testing)
+   - Local time might be different - use UTC hours for the database
+
+MONGODB ATLAS UPDATE STEPS:
+===========================
+
+Method 1: Edit Document (Recommended)
+-------------------------------------
+1. Go to MongoDB Atlas → Database → Browse Collections
+2. Select "users" collection  
+3. Filter: { "email": "abhi.storage36@gmail.com" }
+4. Click "Edit Document" button
+5. Add/update these fields:
+   - notificationFrequency: "1min"
+   - notificationsEnabled: true
+   - notificationStartHour: 7
+   - notificationEndHour: 8
+6. Click "Update"
+
+Method 2: Update Query
+---------------------
+Run this update query in Atlas:
+
+db.users.updateOne(
+  { "email": "abhi.storage36@gmail.com" },
+  { 
+    $set: {
+      "notificationFrequency": "1min",
+      "notificationsEnabled": true,
+      "notificationStartHour": 7,
+      "notificationEndHour": 8,
+      "dailyGoal": 2000,
+      "defaultWaterAmount": 250
+    }
+  }
+)
+
+AFTER UPDATE - TESTING:
+======================
+
+1. ✅ Refresh your web app (log out and log back in)
+2. ✅ Go to Settings Panel - you should see "⚡ 1 minute" option selected
+3. ✅ Enable push notifications if not already enabled
+4. ✅ Start test mode on backend: `node quick-test.js` 
+5. ✅ You should get notifications every minute for the next hour
+6. ✅ Click notifications to test the water alert sound
+
+PRODUCTION DEPLOYMENT:
+=====================
+
+When you deploy to Render:
+- Regular users get: 30min, 1hr, 2hr options
+- Your account gets: ⚡1min, 30min, 1hr, 2hr options  
+- 1min will work in test mode, or add special handling for your account
+
+The 1min option is coded to only appear for your email address:
+settings.email === 'abhi.storage36@gmail.com'

@@ -254,11 +254,11 @@ router.put('/profile', authenticateToken, async (req, res) => {
     }
     
     if (notificationFrequency !== undefined) {
-      const validFrequencies = ['30min', '1hr', '2hr'];
+      const validFrequencies = ['1min', '30min', '1hr', '2hr'];
       if (!validFrequencies.includes(notificationFrequency)) {
         return res.status(400).json({
           error: 'Validation Error',
-          message: 'Notification frequency must be 30min, 1hr, or 2hr'
+          message: 'Notification frequency must be 1min, 30min, 1hr, or 2hr'
         });
       }
       user.notificationFrequency = notificationFrequency;

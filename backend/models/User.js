@@ -45,7 +45,7 @@ const userSchema = new mongoose.Schema({
   },
   notificationFrequency: {
     type: String,
-    enum: ['30min', '1hr', '2hr'],
+    enum: ['1min', '30min', '1hr', '2hr'], // Added 1min for testing
     default: '1hr'
   },
   dailyGoal: {
@@ -156,6 +156,10 @@ userSchema.methods.shouldReceiveNotificationAtHour = function(currentHour, curre
   
   // Apply frequency rules
   switch (frequency) {
+    case '1min':
+      // Every minute (for testing only)
+      return true;
+    
     case '30min':
       // Every 30 minutes: at :00 and :30
       return currentMinute === 0 || currentMinute === 30;
