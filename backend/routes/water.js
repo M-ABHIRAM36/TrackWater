@@ -2,6 +2,7 @@ const express = require('express');
 const WaterLog = require('../models/WaterLog');
 const User = require('../models/User');
 const { authenticateToken, getUserIdFromRequest } = require('../utils/jwt');
+const { Types } = require('mongoose');
 
 const router = express.Router();
 
@@ -257,7 +258,7 @@ router.get('/analytics/weekly', async (req, res) => {
     const result = await WaterLog.aggregate([
       {
         $match: {
-          userId: new require('mongoose').Types.ObjectId(userId),
+          userId: new Types.ObjectId(userId),
           timestamp: { $gte: startDate }
         }
       },
@@ -329,7 +330,7 @@ router.get('/analytics/monthly', async (req, res) => {
     const result = await WaterLog.aggregate([
       {
         $match: {
-          userId: new require('mongoose').Types.ObjectId(userId),
+          userId: new Types.ObjectId(userId),
           timestamp: { $gte: startDate }
         }
       },
