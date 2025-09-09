@@ -86,6 +86,11 @@ const AudioAlert = () => {
         
         // Show a brief success visual feedback
         showWaterLoggedSuccess(waterLog.amountMl)
+        
+        // Refresh the UI by dispatching a custom event
+        window.dispatchEvent(new CustomEvent('waterLogged', {
+          detail: { amount: waterLog.amountMl, timestamp: waterLog.timestamp }
+        }))
       }
     } catch (error) {
       console.error('[AudioAlert] ❌ Failed to auto-log water:', error)

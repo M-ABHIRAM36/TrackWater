@@ -109,23 +109,22 @@ app.use('/api/water', waterRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 // Serve static files from frontend build (for production)
-if (process.env.NODE_ENV === 'production') {
-  const path = require('path');
-  app.use(express.static(path.join(__dirname, '../frontend/dist')));
+const path = require('path');
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
+// SPA fallback - serve index.html for all non-API routes
+app.get('*', (req, res) => {
+  // Don't serve index.html for API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ 
+      error: 'API Route not found',
+      message: `${req.method} ${req.originalUrl} is not a valid API endpoint`
+    });
+  }
   
-  // SPA fallback - serve index.html for all non-API routes
-  app.get('*', (req, res) => {
-    // Don't serve index.html for API routes
-    if (req.path.startsWith('/api/')) {
-      return res.status(404).json({ 
-        error: 'API Route not found',
-        message: `${req.method} ${req.originalUrl} is not a valid API endpoint`
-      });
-    }
-    
-    res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
-  });
-}
+  // Serve index.html for all other routes (SPA fallback)
+  res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+});
 
 // 404 handler
 app.use('*', (req, res) => {

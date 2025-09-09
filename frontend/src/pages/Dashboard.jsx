@@ -18,6 +18,18 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadTodayData()
+    
+    // Listen for water logged events from notifications
+    const handleWaterLoggedEvent = (event) => {
+      console.log('[Dashboard] Water logged from notification, refreshing data')
+      loadTodayData()
+    }
+    
+    window.addEventListener('waterLogged', handleWaterLoggedEvent)
+    
+    return () => {
+      window.removeEventListener('waterLogged', handleWaterLoggedEvent)
+    }
   }, [])
 
   const loadTodayData = async () => {
